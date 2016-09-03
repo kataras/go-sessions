@@ -20,9 +20,11 @@
 The **fastest** (web) session manager for the Go Programming Language.
 
 
+[![Travis Widget]][Travis] [![Release Widget]][Release] [![Documentation Widget]][Documentation] [![Chat Widget]][Chat] [![Report Widget]][Report] [![License Widget]][License]  [![Language Widget]][Language] ![Platform Widget]
+
 - Cleans the temp memory when a session is idle, and re-allocates it to the temp memory when it's necessary. The most used sessions are optimized to be in the front of the memory's list.
 
-- Supports any type of [database](https://github.com/kataras/go-errors/tree/master/examples/3_redis_sessiondb), currently only Redis.
+- Supports any type of [database](https://github.com/kataras/go-sessions/tree/master/examples/3_redis_sessiondb), currently only Redis.
 
 **A session can be defined as a server-side storage of information that is desired to persist throughout the user's interaction with the web application.**
 
@@ -30,12 +32,12 @@ Instead of storing large and constantly changing data via cookies in the user's 
 
 
 
-[![Travis Widget]][Travis] [![Release Widget]][Release] [![Documentation Widget]][Documentation] [![Chat Widget]][Chat] [![Report Widget]][Report] [![License Widget]][License]  [![Language Widget]][Language] ![Platform Widget]
+
 
 
 Installation
 ------------
-The only requirement is the [Go Programming Language](https://golang.org/dl), at least v1.6
+The only requirement is the [Go Programming Language](https://golang.org/dl), at least v1.7.
 
 ```bash
 $ go get -u github.com/kataras/go-sessions
@@ -44,7 +46,7 @@ $ go get -u github.com/kataras/go-sessions
 Examples
 ------------
 
-Take a look at the [./examples](https://github.com/kataras/go-errors/tree/master/examples) , it's a simple (yet strong) package, easy to understand.
+Take a look at the [./examples](https://github.com/kataras/go-sessions/tree/master/examples) , it's a simple (yet strong) package, easy to understand.
 
 
 Usage
