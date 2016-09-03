@@ -72,14 +72,14 @@ UseDatabase(Database)
 ```go
 type Session interface {
   ID() string
-	Get(string) interface{}
-	GetString(key string) string
-	GetInt(key string) int
-	GetAll() map[string]interface{}
-	VisitAll(cb func(k string, v interface{}))
-	Set(string, interface{})
-	Delete(string)
-	Clear()
+  Get(string) interface{}
+  GetString(key string) string
+  GetInt(key string) int
+  GetAll() map[string]interface{}
+  VisitAll(cb func(k string, v interface{}))
+  Set(string, interface{})
+  Delete(string)
+  Clear()
 }
 ```
 
@@ -105,7 +105,7 @@ func main() {
 		sess := sessions.Start(res, req) // init the session
 		// sessions.Start returns:
 		// type Session interface {
-		//  ID() string
+		//    ID() string
 		//	Get(string) interface{}
 		//	GetString(key string) string
 		//	GetInt(key string) int
