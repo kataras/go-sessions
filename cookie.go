@@ -24,10 +24,10 @@ var (
 // returns empty string if nothing was found
 func GetCookie(name string, req *http.Request) string {
 	c, err := req.Cookie(name)
-	if err == nil {
-		return c.Value
+	if err != nil {
+		return ""
 	}
-	return ""
+	return c.Value
 }
 
 // AddCookie adds a cookie
@@ -84,9 +84,9 @@ func ReleaseCookie(cookie *http.Cookie) {
 	cookiePool.Put(cookie)
 }
 
-// validCookieDomain returns true if the receiver is a valid domain to set
+// IsValidCookieDomain returns true if the receiver is a valid domain to set
 // valid means that is recognised as 'domain' by the browser, so it(the cookie) can be shared with subdomains also
-func validCookieDomain(domain string) bool {
+func IsValidCookieDomain(domain string) bool {
 	if domain == "0.0.0.0" || domain == "127.0.0.1" {
 		// for these type of hosts, we can't allow subdomains persistance,
 		// the web browser doesn't understand the mysubdomain.0.0.0.0 and mysubdomain.127.0.0.1 mysubdomain.32.196.56.181. as scorrectly ubdomains because of the many dots

@@ -1,26 +1,21 @@
-// Package sessions provides sessions support for net/http
+// Package sessions provides sessions support for valyala/fasthttp, import "github.com/kataras/go-sessions/fasthttp" but package name is 'sessions.' too.
 // unique with auto-GC, register unlimited number of databases to Load and Update/Save the sessions in external server or to an external (no/or/and sql) database
 // Usage:
 // // init a new sessions manager( if you use only one web framework inside your app then you can use the package-level functions like: sessions.Start/sessions.Destroy)
 // manager := sessions.New(sessions.Config{})
 // // start a session for a particular client
-// manager.Start(http.ResponseWriter, *http.Request)
+// manager.Start(*fasthttp.RequestCtx)
 //
 // // destroy a session from the server and client,
 //  // don't call it on each handler, only on the handler you want the client to 'logout' or something like this:
-// manager.Destroy(http.ResponseWriter, *http.Request)
+// manager.Destroy(*fasthttp.RequestCtx)
 package sessions
 
 import (
-	"encoding/base64"
-	"net/http"
+	"github.com/kataras/go-sessions"
+	"github.com/valyala/fasthttp"
 	"strings"
 	"time"
-)
-
-const (
-	// Version current version number
-	Version = "0.0.2"
 )
 
 type (
@@ -30,78 +25,79 @@ type (
 		// UseDatabase ,optionally, adds a session database to the manager's provider,
 		// a session db doesn't have write access
 		// see https://github.com/kataras/go-sessions/tree/master/sessiondb
-		UseDatabase(Database)
+		UseDatabase(sessions.Database)
 		// Start starts the session for the particular request
-		Start(http.ResponseWriter, *http.Request) Session
+		Start(*fasthttp.RequestCtx) sessions.Session
 		// Destroy kills the session and remove the associated cookie
-		Destroy(http.ResponseWriter, *http.Request)
+		Destroy(*fasthttp.RequestCtx)
 	}
-	// sessions contains the cookie's name, the provider and a duration for GC and cookie life expire
-	sessions struct {
-		config   Config
-		provider *Provider
+	// fasthttpsessions contains the cookie's name, the provider and a duration for GC and cookie life expire
+	fasthttpsessions struct {
+		config   sessions.Config
+		provider *sessions.Provider
 	}
 )
 
 // New creates & returns a new Sessions(manager) and start its GC
-func New(c Config) Sessions {
-	c = c.Validate()
+func New(cfg Config) Sessions {
+	// convert the fasthttp/config to sessions/config
+	// this done because I want the user to be able to import only the /fasthttp and pass the Config withot need to import the root package
+	c := sessions.Config(cfg).Validate()
 	// init and start the sess manager
-	sess := &sessions{config: c, provider: NewProvider(c.Expires)}
+	sess := &fasthttpsessions{config: c, provider: sessions.NewProvider(c.Expires)}
 	//run the GC here
 	go sess.gc()
 	return sess
 }
 
 var defaultSessions = New(Config{
-	Cookie:                      DefaultCookieName,
+	Cookie:                      sessions.DefaultCookieName,
 	DecodeCookie:                false,
-	Expires:                     DefaultCookieExpires,
-	CookieLength:                DefaultCookieLength,
-	GcDuration:                  DefaultGcDuration,
+	Expires:                     sessions.DefaultCookieExpires,
+	CookieLength:                sessions.DefaultCookieLength,
+	GcDuration:                  sessions.DefaultGcDuration,
 	DisableSubdomainPersistence: false,
 })
 
 // UseDatabase adds a session database to the manager's provider,
 // a session db doesn't have write access
-func UseDatabase(db Database) {
+func UseDatabase(db sessions.Database) {
 	defaultSessions.UseDatabase(db)
 }
 
 // UseDatabase adds a session database to the manager's provider,
 // a session db doesn't have write access
-func (m *sessions) UseDatabase(db Database) {
+func (m *fasthttpsessions) UseDatabase(db sessions.Database) {
 	m.provider.Expires = m.config.Expires // updae the expires confiuration field for any case
 	m.provider.RegisterDatabase(db)
 }
 
 // Start starts the session for the particular request
-func Start(res http.ResponseWriter, req *http.Request) Session {
-	return defaultSessions.Start(res, req)
+func Start(reqCtx *fasthttp.RequestCtx) sessions.Session {
+	return defaultSessions.Start(reqCtx)
 }
 
 // Start starts the session for the particular request
-func (m *sessions) Start(res http.ResponseWriter, req *http.Request) Session {
-	var sess Session
+func (m *fasthttpsessions) Start(reqCtx *fasthttp.RequestCtx) sessions.Session {
+	var sess sessions.Session
 
-	cookieValue := GetCookie(m.config.Cookie, req)
+	cookieValue := GetCookie(m.config.Cookie, reqCtx)
 
 	if cookieValue == "" { // cookie doesn't exists, let's generate a session and add set a cookie
-		sid := GenerateSessionID(m.config.CookieLength)
+		sid := sessions.GenerateSessionID(m.config.CookieLength)
 		sess = m.provider.Init(sid)
-		//cookie := &http.Cookie{}
-		cookie := AcquireCookie()
+		cookie := fasthttp.AcquireCookie()
+		//cookie := &fasthttp.Cookie{}
 		// The RFC makes no mention of encoding url value, so here I think to encode both sessionid key and the value using the safe(to put and to use as cookie) url-encoding
-		cookie.Name = m.config.Cookie
-		cookie.Value = sid
-		cookie.Path = "/"
+		cookie.SetKey(m.config.Cookie)
+		cookie.SetValue(sid)
+		cookie.SetPath("/")
 		if !m.config.DisableSubdomainPersistence {
-
-			requestDomain := req.Host
+			requestDomain := string(reqCtx.Host())
 			if portIdx := strings.IndexByte(requestDomain, ':'); portIdx > 0 {
 				requestDomain = requestDomain[0:portIdx]
 			}
-			if IsValidCookieDomain(requestDomain) {
+			if sessions.IsValidCookieDomain(requestDomain) {
 
 				// RFC2109, we allow level 1 subdomains, but no further
 				// if we have localhost.com , we want the localhost.com.
@@ -122,20 +118,20 @@ func (m *sessions) Start(res http.ResponseWriter, req *http.Request) Session {
 					}
 				}
 				// finally set the .localhost.com (for(1-level) || .mysubdomain.localhost.com (for 2-level subdomain allow)
-				cookie.Domain = "." + requestDomain // . to allow persistance
+				cookie.SetDomain("." + requestDomain) // . to allow persistance
 			}
 
 		}
-		cookie.HttpOnly = true
+		cookie.SetHTTPOnly(true)
 		if m.config.Expires == 0 {
 			// unlimited life
-			cookie.Expires = CookieExpireUnlimited
+			cookie.SetExpire(sessions.CookieExpireUnlimited)
 		} else if m.config.Expires > 0 {
-			cookie.Expires = time.Now().Add(m.config.Expires)
+			cookie.SetExpire(time.Now().Add(m.config.Expires))
 		} // if it's -1 then the cookie is deleted when the browser closes
 
-		AddCookie(cookie, res)
-		ReleaseCookie(cookie)
+		AddCookie(cookie, reqCtx)
+		fasthttp.ReleaseCookie(cookie)
 	} else {
 		sess = m.provider.Read(cookieValue)
 	}
@@ -143,31 +139,26 @@ func (m *sessions) Start(res http.ResponseWriter, req *http.Request) Session {
 }
 
 // Destroy kills the session and remove the associated cookie
-func Destroy(res http.ResponseWriter, req *http.Request) {
-	defaultSessions.Destroy(res, req)
+func Destroy(reqCtx *fasthttp.RequestCtx) {
+	defaultSessions.Destroy(reqCtx)
 }
 
 // Destroy kills the session and remove the associated cookie
-func (m *sessions) Destroy(res http.ResponseWriter, req *http.Request) {
-	cookieValue := GetCookie(m.config.Cookie, req)
+func (m *fasthttpsessions) Destroy(reqCtx *fasthttp.RequestCtx) {
+	cookieValue := GetCookie(m.config.Cookie, reqCtx)
 	if cookieValue == "" { // nothing to destroy
 		return
 	}
-	RemoveCookie(m.config.Cookie, res, req)
+	RemoveCookie(m.config.Cookie, reqCtx)
 	m.provider.Destroy(cookieValue)
 }
 
 // GC tick-tock for the store cleanup
 // it's a blocking function, so run it with go routine, it's totally safe
-func (m *sessions) gc() {
+func (m *fasthttpsessions) gc() {
 	m.provider.GC(m.config.GcDuration)
 	// set a timer for the next GC
 	time.AfterFunc(m.config.GcDuration, func() {
 		m.gc()
 	})
-}
-
-// GenerateSessionID returns a random string, used to set the session id
-func GenerateSessionID(length int) string {
-	return base64.URLEncoding.EncodeToString(Random(length))
 }

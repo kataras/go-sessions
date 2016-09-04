@@ -30,12 +30,17 @@ type Config struct {
 	// DecodeCookie set it to true to decode the cookie key with base64 URLEncoding
 	// Defaults to false
 	DecodeCookie bool
+
 	// Expires the duration of which the cookie must expires (created_time.Add(Expires)).
 	// If you want to delete the cookie when the browser closes, set it to -1 but in this case, the server side's session duration is up to GcDuration
 	//
 	// Default infinitive/unlimited life duration(0)
-
 	Expires time.Duration
+
+	// CookieLength the length of the sessionid's cookie's value, let it to 0 if you don't want to change it
+	// Defaults to 32
+	CookieLength int
+
 	// GcDuration every how much duration(GcDuration) the memory should be clear for unused cookies (GcDuration)
 	// for example: time.Duration(2)*time.Hour. it will check every 2 hours if cookie hasn't be used for 2 hours,
 	// deletes it from backend memory until the user comes back, then the session continue to work as it was
@@ -48,7 +53,8 @@ type Config struct {
 	DisableSubdomainPersistence bool
 }
 
-func (c Config) validate() Config {
+// Validate corrects missing fields configuration fields and returns the right configuration
+func (c Config) Validate() Config {
 	if c.Cookie == "" {
 		c.Cookie = DefaultCookieName
 	}
@@ -62,6 +68,10 @@ func (c Config) validate() Config {
 		c.Cookie = base64.URLEncoding.EncodeToString([]byte(c.Cookie)) // change the cookie's name/key to a more safe(?)
 		// get the real value for your tests by:
 		//sessIdKey := url.QueryEscape(base64.URLEncoding.EncodeToString([]byte(Sessions.Cookie)))
+	}
+
+	if c.CookieLength <= 0 {
+		c.CookieLength = DefaultCookieLength
 	}
 	return c
 }

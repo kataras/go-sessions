@@ -28,7 +28,7 @@ type (
 		mu               sync.Mutex
 		lastAccessedTime time.Time
 		createdAt        time.Time
-		provider         *provider
+		provider         *Provider
 	}
 )
 
