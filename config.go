@@ -17,12 +17,13 @@ const (
 )
 
 // Config the configuration for sessions
-// has 5 fields
+// has 6 fields
 // first is the cookieName, the session's name (string) ["mysessionsecretcookieid"]
 // second enable if you want to decode the cookie's key also
 // third is the time which the client's cookie expires
-// forth is the gcDuration (time.Duration) when this time passes it removes the unused sessions from the memory until the user come back
-// fifth is the DisableSubdomainPersistence which you can set it to true in order dissallow your q subdomains to have access to the session cook
+// forth is the cookie length (sessionid) int, defaults to 32, do not change if you don't have any reason to do
+// fifth is the gcDuration (time.Duration) when this time passes it removes the unused sessions from the memory until the user come back
+// sixth is the DisableSubdomainPersistence which you can set it to true in order dissallow your q subdomains to have access to the session cook
 //
 type Config struct {
 	// Cookie string, the session's client cookie name, for example: "qsessionid"
