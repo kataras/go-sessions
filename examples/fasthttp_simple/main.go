@@ -17,7 +17,7 @@ func main() {
 		}
 
 		sess := sessions.StartFasthttp(reqCtx) // init the session
-		// sessions.Start returns:
+		// sessions.StartFasthttp returns:
 		// type Session interface {
 		//  ID() string
 		//	Get(string) interface{}

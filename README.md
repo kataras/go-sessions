@@ -52,9 +52,6 @@ Examples
 Take a look at the [./examples](https://github.com/kataras/go-sessions/tree/master/examples) , it's a simple (yet strong) package, easy to understand.
 
 
-Usage NET/HTTP
-------------
-
 **OUTLINE**
 
 ```go
@@ -76,6 +73,10 @@ UseDatabase(Database)
 // UpdateConfig updates the configuration field (Config does not receives a pointer, so this is a way to update a pre-defined configuration)
 UpdateConfig(Config)
 ```
+
+Usage NET/HTTP
+------------
+
 
 `Start` returns a `Session`, **Session outline**
 
@@ -113,9 +114,9 @@ func main() {
 		}
 
 		sess := sessions.Start(res, req) // init the session
-		// sessions.Start returns:
+    // sessions.Start returns:
 		// type Session interface {
-		//    ID() string
+		//  ID() string
 		//	Get(string) interface{}
 		//	GetString(key string) string
 		//	GetInt(key string) int
@@ -166,7 +167,7 @@ func main() {
 Usage FASTHTTP
 ------------
 
-`StartFasthttp` returns a `Session`, **Session outline**
+`StartFasthttp` returns again `Session`, **Session outline**
 
 ```go
 type Session interface {
@@ -202,7 +203,7 @@ func main() {
 		}
 
 		sess := sessions.StartFasthttp(reqCtx) // init the session
-		// sessions.Start returns:
+		// sessions.StartFasthttp returns:
 		// type Session interface {
 		//  ID() string
 		//	Get(string) interface{}
