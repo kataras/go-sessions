@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/kataras/go-sessions/fasthttp"
+	"github.com/kataras/go-sessions"
 	"github.com/valyala/fasthttp"
 )
 
@@ -16,7 +16,7 @@ func main() {
 			"Secret": "dsads£2132215£%%Ssdsa",
 		}
 
-		sess := sessions.Start(reqCtx) // init the session
+		sess := sessions.StartFasthttp(reqCtx) // init the session
 		// sessions.Start returns:
 		// type Session interface {
 		//  ID() string
@@ -38,21 +38,21 @@ func main() {
 
 	// get the values from the session
 	getHandler := func(reqCtx *fasthttp.RequestCtx) {
-		sess := sessions.Start(reqCtx) // init the session
-		sessValues := sess.GetAll()    // get all values from this session
+		sess := sessions.StartFasthttp(reqCtx) // init the session
+		sessValues := sess.GetAll()            // get all values from this session
 
 		reqCtx.WriteString(fmt.Sprintf("%#v", sessValues))
 	}
 
 	// clear all values from the session
 	clearHandler := func(reqCtx *fasthttp.RequestCtx) {
-		sess := sessions.Start(reqCtx)
+		sess := sessions.StartFasthttp(reqCtx)
 		sess.Clear()
 	}
 
 	// destroys the session, clears the values and removes the server-side entry and client-side sessionid cookie
 	destroyHandler := func(reqCtx *fasthttp.RequestCtx) {
-		sessions.Destroy(reqCtx)
+		sessions.DestroyFasthttp(reqCtx)
 	}
 
 	fmt.Println("Open a browser tab and navigate to the localhost:8080/set")

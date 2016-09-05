@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/gob"
+	"github.com/valyala/fasthttp"
 	"math/rand"
 	"net/http"
 	"strconv"
@@ -82,6 +83,41 @@ func AcquireCookie() *http.Cookie {
 // Do not access released Cookie object, otherwise data races may occur.
 func ReleaseCookie(cookie *http.Cookie) {
 	cookiePool.Put(cookie)
+}
+
+// FastHTTP
+
+// GetFasthttpCookie returns cookie's value by it's name
+// returns empty string if nothing was found
+func GetFasthttpCookie(name string, reqCtx *fasthttp.RequestCtx) (val string) {
+	bcookie := reqCtx.Request.Header.Cookie(name)
+	if bcookie != nil {
+		val = string(bcookie)
+	}
+	return
+}
+
+// AddFasthttpCookie adds a cookie to the client
+func AddFasthttpCookie(c *fasthttp.Cookie, reqCtx *fasthttp.RequestCtx) {
+	reqCtx.Response.Header.SetCookie(c)
+}
+
+// RemoveFasthttpCookie deletes a cookie by it's name/key
+func RemoveFasthttpCookie(name string, reqCtx *fasthttp.RequestCtx) {
+	reqCtx.Response.Header.DelCookie(name)
+
+	cookie := fasthttp.AcquireCookie()
+	//cookie := &fasthttp.Cookie{}
+	cookie.SetKey(name)
+	cookie.SetValue("")
+	cookie.SetPath("/")
+	cookie.SetHTTPOnly(true)
+	exp := time.Now().Add(-time.Duration(1) * time.Minute) //RFC says 1 second, but let's do it 1 minute to make sure is working...
+	cookie.SetExpire(exp)
+	AddFasthttpCookie(cookie, reqCtx)
+	fasthttp.ReleaseCookie(cookie)
+	// delete request's cookie also, which is temporarly available
+	reqCtx.Request.Header.DelCookie(name)
 }
 
 // IsValidCookieDomain returns true if the receiver is a valid domain to set

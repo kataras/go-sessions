@@ -29,7 +29,7 @@ func ReadJSON(jsonObject interface{}, req *http.Request) error {
 	return nil
 }
 
-func TestSessionsFull(t *testing.T) {
+func TestSessionsNetHTTP(t *testing.T) {
 	t.Parallel()
 
 	values := map[string]interface{}{
