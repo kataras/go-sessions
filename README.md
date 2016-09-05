@@ -1,7 +1,7 @@
 
 <p align="center">
 
- <a href="https://github.com/kataras/go-sessions"><img style="margin-left:250px" width="600"  src="https://github.com/kataras/go-sessions/raw/master/logo.png"></a>
+ <a href="https://github.com/kataras/go-sessions"><img  width="600"  src="https://github.com/kataras/go-sessions/raw/master/logo_900_273.png"></a>
  <br/><br/>
 
 
