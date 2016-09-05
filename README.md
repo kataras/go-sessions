@@ -1,42 +1,39 @@
-[Travis Widget]: https://img.shields.io/travis/kataras/go-sessions.svg?style=flat-square
-[Travis]: http://travis-ci.org/kataras/go-sessions
-[License Widget]: https://img.shields.io/badge/license-MIT%20%20License%20-E91E63.svg?style=flat-square
-[License]: https://github.com/kataras/go-sessions/blob/master/LICENSE
-[Release Widget]: https://img.shields.io/badge/release-v0.0.3-blue.svg?style=flat-square
-[Release]: https://github.com/kataras/go-sessions/releases
-[Chat Widget]: https://img.shields.io/badge/community-chat-00BCD4.svg?style=flat-square
-[Chat]: https://kataras.rocket.chat/channel/go-sessions
-[ChatMain]: https://kataras.rocket.chat/channel/go-sessions
-[ChatAlternative]: https://gitter.im/kataras/go-sessions
-[Report Widget]: https://img.shields.io/badge/report%20card-A%2B-F44336.svg?style=flat-square
-[Report]: http://goreportcard.com/report/kataras/go-sessions
-[Documentation Widget]: https://img.shields.io/badge/documentation-reference-5272B4.svg?style=flat-square
-[Documentation]: https://godoc.org/github.com/kataras/go-sessions
-[Language Widget]: https://img.shields.io/badge/powered_by-Go-3362c2.svg?style=flat-square
-[Language]: http://golang.org
-[Platform Widget]: https://img.shields.io/badge/platform-any--OS-yellow.svg?style=flat-square
+
+<p align="center">
+
+ <a href="https://github.com/kataras/go-sessions"><img style="margin-left:250px" width="600"  src="https://github.com/kataras/go-sessions/raw/master/logo.png"></a>
+ <br/><br/>
+
+[![Travis Widget]][Travis] [![License Widget]][License] [![Release Widget]][Release] [![Documentation Widget]][Documentation]
+<br/>
+[![Chat Widget]][Chat] [![Language Widget]][Language] ![Platform Widget]
+<br/>
+Fast, unique & [cross-framework](#features) http session manager package for Go.<br/>
+Easy to [learn](#docs), while providing robust set of features.<br/>
+
+Ideally suited for both experienced and novice Developers.
 
 
-The **fastest** (web) session manager for the Go Programming Language.
+</p>
 
-**Cross-framework** support, means that supports [net/http](https://golang.org/pkg/net/http/) based, like [Q](https://github.com/kataras/q) and [fasthttp](https://github.com/valyala/fasthttp) based frameworks, like [Iris](https://github.com/kataras/iris).
+Quick view
+-----------
 
-**NEW**: With go-sessions, you can, now, share sessions values between a net/http web app and a fasthttp web app!
+```go
+import "github.com/kataras/go-sessions"
 
-[![Travis Widget]][Travis] [![Release Widget]][Release] [![Documentation Widget]][Documentation] [![Chat Widget]][Chat] [![Report Widget]][Report] [![License Widget]][License]  [![Language Widget]][Language] ![Platform Widget]
+sess := sessions.Start(http.ResponseWriter, *http.Request)
+sess.ID() string
+sess.Get(string) interface{}
+sess.GetString(key string) string
+sess.GetInt(key string) int
+sess.GetAll() map[string]interface{}
+sess.VisitAll(cb func(k string, v interface{}))
+sess.Set(string, interface{})
+sess.Delete(string)
+sess.Clear()
 
-- Cleans the temp memory when a session is idle, and re-allocates it to the temp memory when it's necessary. The most used sessions are optimized to be in the front of the memory's list.
-
-- Supports any type of [database](https://github.com/kataras/go-sessions/tree/master/examples/3_redis_sessiondb), currently only Redis.
-
-**A session can be defined as a server-side storage of information that is desired to persist throughout the user's interaction with the web application.**
-
-Instead of storing large and constantly changing data via cookies in the user's browser, **only a unique identifier is stored on the client side** called a "session id". This session id is passed to the web server on every request. The web application uses the session id as the key for retrieving the stored data from the database/memory. The session data is then available from the net/http or fasthttp Handler when calls the `sessions.Start/sessions.StartFasthttp`.
-
-
-
-
-
+```
 
 Installation
 ------------
@@ -46,10 +43,19 @@ The only requirement is the [Go Programming Language](https://golang.org/dl), at
 $ go get -u github.com/kataras/go-sessions
 ```
 
-Examples
+Features
+------------
+- Focus on simplicity and performance, it's the fastest sessions provider in Go world.
+- Cleans the temp memory when a session is idle, and re-allocates it to the temp memory when it's necessary.
+- The most used sessions are optimized to be in the front of the memory's list.
+- Supports any type of [external database](https://github.com/kataras/go-sessions/tree/master/examples/3_redis_sessiondb).
+- Works with both [net/http](https://golang.org/pkg/net/http/) and [valyala/fasthttp](https://github.com/valyala/fasthttp).
+
+
+Docs
 ------------
 
-Take a look at the [./examples](https://github.com/kataras/go-sessions/tree/master/examples) , it's a simple (yet strong) package, easy to understand.
+Take a look at the [./examples](https://github.com/kataras/go-sessions/tree/master/examples).
 
 
 **OUTLINE**
@@ -301,3 +307,21 @@ License
 This project is licensed under the MIT License.
 
 License can be found [here](LICENSE).
+
+[Travis Widget]: https://img.shields.io/travis/kataras/go-sessions.svg?style=flat-square
+[Travis]: http://travis-ci.org/kataras/go-sessions
+[License Widget]: https://img.shields.io/badge/license-MIT%20%20License%20-E91E63.svg?style=flat-square
+[License]: https://github.com/kataras/go-sessions/blob/master/LICENSE
+[Release Widget]: https://img.shields.io/badge/release-v0.0.3-blue.svg?style=flat-square
+[Release]: https://github.com/kataras/go-sessions/releases
+[Chat Widget]: https://img.shields.io/badge/community-chat-00BCD4.svg?style=flat-square
+[Chat]: https://kataras.rocket.chat/channel/go-sessions
+[ChatMain]: https://kataras.rocket.chat/channel/go-sessions
+[ChatAlternative]: https://gitter.im/kataras/go-sessions
+[Report Widget]: https://img.shields.io/badge/report%20card-A%2B-F44336.svg?style=flat-square
+[Report]: http://goreportcard.com/report/kataras/go-sessions
+[Documentation Widget]: https://img.shields.io/badge/docs-reference-5272B4.svg?style=flat-square
+[Documentation]: https://godoc.org/github.com/kataras/go-sessions
+[Language Widget]: https://img.shields.io/badge/powered_by-Go-3362c2.svg?style=flat-square
+[Language]: http://golang.org
+[Platform Widget]: https://img.shields.io/badge/platform-Any--OS-yellow.svg?style=flat-square
