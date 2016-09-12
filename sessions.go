@@ -35,15 +35,15 @@ import (
 
 const (
 	// Version current version number
-	Version = "0.0.3"
+	Version = "0.0.4"
 )
 
 type (
 	// Sessions is the start point of this package
 	// contains all the registered sessions and manages them
 	Sessions interface {
-		// UpdateConfig updates the configuration field (Config does not receives a pointer, so this is a way to update a pre-defined configuration)
-		UpdateConfig(Config)
+		// Init sets the session's manager configuration and starts the session manager, same as .New()
+		Init(Config)
 		// UseDatabase ,optionally, adds a session database to the manager's provider,
 		// a session db doesn't have write access
 		// see https://github.com/kataras/go-sessions/tree/master/sessiondb
@@ -52,9 +52,9 @@ type (
 		Start(http.ResponseWriter, *http.Request) Session
 		// Destroy kills the net/http session and remove the associated cookie
 		Destroy(http.ResponseWriter, *http.Request)
-		// Start starts the session for the particular valyala/fasthttp request
+		// StartFasthttp starts the session for the particular valyala/fasthttp request
 		StartFasthttp(*fasthttp.RequestCtx) Session
-		// Destroy kills the valyala/fasthttp session and remove the associated cookie
+		// DestroyFasthttp kills the valyala/fasthttp session and remove the associated cookie
 		DestroyFasthttp(*fasthttp.RequestCtx)
 	}
 	// sessions contains the cookie's name, the provider and a duration for GC and cookie life expire
@@ -64,13 +64,16 @@ type (
 	}
 )
 
-// New creates & returns a new Sessions(manager) and start its GC
+// New creates & returns a new Sessions(manager) and start its GC (calls the .Init)
 func New(c Config) Sessions {
-	c = c.Validate()
-	// init and start the sess manager
-	sess := &sessions{config: c, provider: NewProvider(c.Expires)}
-	//run the GC here
-	go sess.gc()
+	sess := Empty()
+	sess.Init(c)
+	return sess
+}
+
+// Empty creates & returns a new Sessions(manager), doesn't starts its GC (.Init)
+func Empty() Sessions {
+	sess := &sessions{provider: NewProvider()}
 	return sess
 }
 
@@ -83,14 +86,15 @@ var defaultSessions = New(Config{
 	DisableSubdomainPersistence: false,
 })
 
-// UpdateConfig updates the sessions configuration
-func UpdateConfig(c Config) {
-	defaultSessions.UpdateConfig(c)
+// Init sets the session's manager configuration and starts the session manager, same as .New()
+func Init(c Config) {
+	defaultSessions.Init(c)
 }
 
-// UpdateConfig updates the sessions configuration
-func (s *sessions) UpdateConfig(c Config) {
+func (s *sessions) Init(c Config) {
 	s.config = c.Validate()
+	//run the GC here
+	go s.gc()
 }
 
 // UseDatabase adds a session database to the manager's provider,
@@ -102,7 +106,6 @@ func UseDatabase(db Database) {
 // UseDatabase adds a session database to the manager's provider,
 // a session db doesn't have write access
 func (s *sessions) UseDatabase(db Database) {
-	s.provider.Expires = s.config.Expires // updae the expires confiuration field for any case
 	s.provider.RegisterDatabase(db)
 }
 
@@ -119,7 +122,7 @@ func (s *sessions) Start(res http.ResponseWriter, req *http.Request) Session {
 
 	if cookieValue == "" { // cookie doesn't exists, let's generate a session and add set a cookie
 		sid := GenerateSessionID(s.config.CookieLength)
-		sess = s.provider.Init(sid)
+		sess = s.provider.Init(sid, s.config.Expires)
 		//cookie := &http.Cookie{}
 		cookie := AcquireCookie()
 		// The RFC makes no mention of encoding url value, so here I think to encode both sessionid key and the value using the safe(to put and to use as cookie) url-encoding
@@ -168,7 +171,7 @@ func (s *sessions) Start(res http.ResponseWriter, req *http.Request) Session {
 		AddCookie(cookie, res)
 		ReleaseCookie(cookie)
 	} else {
-		sess = s.provider.Read(cookieValue)
+		sess = s.provider.Read(cookieValue, s.config.Expires)
 	}
 	return sess
 }
@@ -201,7 +204,7 @@ func (s *sessions) StartFasthttp(reqCtx *fasthttp.RequestCtx) Session {
 
 	if cookieValue == "" { // cookie doesn't exists, let's generate a session and add set a cookie
 		sid := GenerateSessionID(s.config.CookieLength)
-		sess = s.provider.Init(sid)
+		sess = s.provider.Init(sid, s.config.Expires)
 		cookie := fasthttp.AcquireCookie()
 		//cookie := &fasthttp.Cookie{}
 		// The RFC makes no mention of encoding url value, so here I think to encode both sessionid key and the value using the safe(to put and to use as cookie) url-encoding
@@ -249,7 +252,7 @@ func (s *sessions) StartFasthttp(reqCtx *fasthttp.RequestCtx) Session {
 		AddFasthttpCookie(cookie, reqCtx)
 		fasthttp.ReleaseCookie(cookie)
 	} else {
-		sess = s.provider.Read(cookieValue)
+		sess = s.provider.Read(cookieValue, s.config.Expires)
 	}
 	return sess
 }

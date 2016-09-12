@@ -13,13 +13,12 @@ type (
 		sessions  map[string]*list.Element // underline TEMPORARY memory store used to give advantage on sessions used more times than others
 		list      *list.List               // for GC
 		databases []Database
-		Expires   time.Duration
 	}
 )
 
 // NewProvider returns a new sessions provider
-func NewProvider(expires time.Duration) *Provider {
-	return &Provider{list: list.New(), sessions: make(map[string]*list.Element, 0), databases: make([]Database, 0), Expires: expires}
+func NewProvider() *Provider {
+	return &Provider{list: list.New(), sessions: make(map[string]*list.Element, 0), databases: make([]Database, 0)}
 }
 
 // RegisterDatabase adds a session database
@@ -31,7 +30,7 @@ func (p *Provider) RegisterDatabase(db Database) {
 }
 
 // NewSession returns a new session from sessionid
-func (p *Provider) NewSession(sid string) Session {
+func (p *Provider) NewSession(sid string, expires time.Duration) Session {
 
 	sess := &session{
 		sid:              sid,
@@ -39,13 +38,12 @@ func (p *Provider) NewSession(sid string) Session {
 		lastAccessedTime: time.Now(),
 		values:           p.loadSessionValues(sid),
 	}
-	if p.Expires > 0 { // if not unlimited life duration and no -1 (cookie remove action is based on browser's session)
-		time.AfterFunc(p.Expires, func() {
+	if expires > 0 { // if not unlimited life duration and no -1 (cookie remove action is based on browser's session)
+		time.AfterFunc(expires, func() {
 			// the destroy makes the check if this session is exists then or not,
 			// this is used to destroy the session from the server-side also
 			// it's good to have here for security reasons, I didn't add it on the gc function to separate its action
 			p.Destroy(sid)
-
 		})
 	}
 
@@ -71,8 +69,8 @@ func (p *Provider) updateDatabases(sid string, newValues map[string]interface{})
 }
 
 // Init creates the session  and returns it
-func (p *Provider) Init(sid string) Session {
-	newSession := p.NewSession(sid)
+func (p *Provider) Init(sid string, expires time.Duration) Session {
+	newSession := p.NewSession(sid, expires)
 	elem := p.list.PushBack(newSession)
 	p.mu.Lock()
 	p.sessions[sid] = elem
@@ -81,7 +79,7 @@ func (p *Provider) Init(sid string) Session {
 }
 
 // Read returns the store which sid parameter is belongs
-func (p *Provider) Read(sid string) Session {
+func (p *Provider) Read(sid string, expires time.Duration) Session {
 	p.mu.Lock()
 	if elem, found := p.sessions[sid]; found {
 		p.mu.Unlock() // yes defer is slow
@@ -90,7 +88,7 @@ func (p *Provider) Read(sid string) Session {
 	}
 	p.mu.Unlock()
 	// if not found create new
-	sess := p.Init(sid)
+	sess := p.Init(sid, expires)
 	return sess
 }
 
