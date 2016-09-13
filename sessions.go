@@ -35,28 +35,39 @@ import (
 
 const (
 	// Version current version number
-	Version = "0.0.4"
+	Version = "0.0.5"
 )
 
 type (
 	// Sessions is the start point of this package
 	// contains all the registered sessions and manages them
 	Sessions interface {
-		// Init sets the session's manager configuration and starts the session manager, same as .New()
-		Init(Config)
+		// Set options/configuration fields in runtime
+		Set(...OptionSetter)
+
 		// UseDatabase ,optionally, adds a session database to the manager's provider,
 		// a session db doesn't have write access
 		// see https://github.com/kataras/go-sessions/tree/master/sessiondb
 		UseDatabase(Database)
+
+		// GC tick-tock for the store cleanup, call it manually if you set the AutoStart configuration field to false.
+		// otherwise do not call it manually.
+		// it's running inside a new goroutine
+		GC()
+
 		// Start starts the session for the particular net/http request
 		Start(http.ResponseWriter, *http.Request) Session
+
 		// Destroy kills the net/http session and remove the associated cookie
 		Destroy(http.ResponseWriter, *http.Request)
+
 		// StartFasthttp starts the session for the particular valyala/fasthttp request
 		StartFasthttp(*fasthttp.RequestCtx) Session
+
 		// DestroyFasthttp kills the valyala/fasthttp session and remove the associated cookie
 		DestroyFasthttp(*fasthttp.RequestCtx)
 	}
+
 	// sessions contains the cookie's name, the provider and a duration for GC and cookie life expire
 	sessions struct {
 		config   Config
@@ -65,36 +76,30 @@ type (
 )
 
 // New creates & returns a new Sessions(manager) and start its GC (calls the .Init)
-func New(c Config) Sessions {
-	sess := Empty()
-	sess.Init(c)
+func New(setters ...OptionSetter) Sessions {
+	c := Config{}.Validate()
+	sess := &sessions{config: c, provider: NewProvider()}
+	sess.Set(setters...)
+
 	return sess
 }
 
-// Empty creates & returns a new Sessions(manager), doesn't starts its GC (.Init)
-func Empty() Sessions {
-	sess := &sessions{provider: NewProvider()}
-	return sess
+var defaultSessions = New(Config{}.Validate())
+
+// Set options/configuration fields in runtime
+func Set(setters ...OptionSetter) {
+	defaultSessions.Set(setters...)
 }
 
-var defaultSessions = New(Config{
-	Cookie:                      DefaultCookieName,
-	DecodeCookie:                false,
-	Expires:                     DefaultCookieExpires,
-	CookieLength:                DefaultCookieLength,
-	GcDuration:                  DefaultGcDuration,
-	DisableSubdomainPersistence: false,
-})
+func (s *sessions) Set(setters ...OptionSetter) {
+	for _, setter := range setters {
+		setter.Set(&s.config)
+	}
 
-// Init sets the session's manager configuration and starts the session manager, same as .New()
-func Init(c Config) {
-	defaultSessions.Init(c)
-}
-
-func (s *sessions) Init(c Config) {
-	s.config = c.Validate()
-	//run the GC here
-	go s.gc()
+	if !s.config.DisableAutoGC {
+		// try to start the GC here
+		s.GC()
+	}
 }
 
 // UseDatabase adds a session database to the manager's provider,
@@ -272,14 +277,30 @@ func (s *sessions) DestroyFasthttp(reqCtx *fasthttp.RequestCtx) {
 	s.provider.Destroy(cookieValue)
 }
 
-// GC tick-tock for the store cleanup
-// it's a blocking function, so run it with go routine, it's totally safe
-func (s *sessions) gc() {
-	s.provider.GC(s.config.GcDuration)
-	// set a timer for the next GC
-	time.AfterFunc(s.config.GcDuration, func() {
-		s.gc()
-	})
+// GC tick-tock for the store cleanup, call it manually if you set the AutoStart configuration field to false.
+// otherwise do not call it manually.
+// it's running inside a new goroutine
+func GC() {
+	defaultSessions.GC()
+}
+
+// GC tick-tock for the store cleanup, call it manually if you set the AutoStart configuration field to false.
+// otherwise do not call it manually.
+// it's running inside a new goroutine
+func (s *sessions) GC() {
+	go func() {
+
+		// check everytime if the option/config field is changed, if yes then do not continue the gc at the next tick.
+		if s.config.DisableAutoGC {
+			return
+		}
+
+		s.provider.GC(s.config.GcDuration)
+		// set a timer for the next GC
+		time.AfterFunc(s.config.GcDuration, func() {
+			s.GC()
+		})
+	}()
 }
 
 // GenerateSessionID returns a random string, used to set the session id
