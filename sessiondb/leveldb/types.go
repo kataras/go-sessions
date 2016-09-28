@@ -1,4 +1,4 @@
-package leveldb // import "github.com/monoflash/go-sessions/sessiondb/leveldb"
+package leveldb // import "github.com/kataras/go-sessions/sessiondb/leveldb"
 
 import (
 	"sync"

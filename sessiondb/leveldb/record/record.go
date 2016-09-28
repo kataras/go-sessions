@@ -1,4 +1,4 @@
-package record // import "github.com/monoflash/go-sessions/sessiondb/leveldb/record"
+package record // import "github.com/kataras/go-sessions/sessiondb/leveldb/record"
 
 import "time"
 

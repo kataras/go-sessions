@@ -1,4 +1,4 @@
-package leveldb // import "github.com/monoflash/go-sessions/sessiondb/leveldb"
+package leveldb // import "github.com/kataras/go-sessions/sessiondb/leveldb"
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/monoflash/go-sessions/sessiondb/leveldb/record"
+	"github.com/kataras/go-sessions/sessiondb/leveldb/record"
 
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
