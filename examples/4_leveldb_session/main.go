@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/kataras/go-sessions"
-	"github.com/monoflash/go-sessions/sessiondb/leveldb"
+	"github.com/kataras/go-sessions/sessiondb/leveldb"
 )
 
 var mySessionsConfig = sessions.Config{Cookie: "mysessioncookieid",
