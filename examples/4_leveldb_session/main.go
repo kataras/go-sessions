@@ -4,11 +4,15 @@ package main
 
 import (
 	"fmt"
-	"github.com/kataras/go-sessions"
-	"github.com/kataras/go-sessions/sessiondb/redis"
-	"github.com/kataras/go-sessions/sessiondb/redis/service"
+	"net"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
+
+	"github.com/kataras/go-sessions"
+	"github.com/kataras/go-sessions/sessiondb/leveldb"
 )
 
 var mySessionsConfig = sessions.Config{Cookie: "mysessioncookieid",
@@ -21,15 +25,15 @@ var mySessionsConfig = sessions.Config{Cookie: "mysessioncookieid",
 var mySessions = sessions.New(mySessionsConfig)
 
 func main() {
-	db := redis.New(service.Config{Network: service.DefaultRedisNetwork,
-		Addr:          service.DefaultRedisAddr,
-		Password:      "",
-		Database:      "",
-		MaxIdle:       0,
-		MaxActive:     0,
-		IdleTimeout:   service.DefaultRedisIdleTimeout,
-		Prefix:        "",
-		MaxAgeSeconds: service.DefaultRedisMaxAgeSeconds}) // optionally configure the bridge between your redis server
+	Main()
+}
+
+func Main() {
+	db := leveldb.New(leveldb.Config{
+		Path: "dbpath",
+		//		MaxAge:       time.Second * 15, // 15 seconds for test auto clean old session
+		//		CleanTimeout: time.Second,      // faster for test auto clean old session
+	}) // optionally configure the bridge between your redis server
 
 	// register the database, which will load from redis to the memory and update the redis database from memory when a session is updated
 	// you can use unlimited number of databases, same type or other type.
@@ -85,6 +89,23 @@ func main() {
 	})
 	http.Handle("/destroy/", destroyHandler)
 
-	fmt.Println("Start your redis server first\nOpen a browser tab and navigate to the localhost:8080/set/\n See your redis database getting update ")
-	http.ListenAndServe(":8080", nil)
+	fmt.Println("Open a browser tab and navigate to the localhost:8080/set/")
+	ln, err := net.Listen("tcp", ":8080")
+	if err != nil {
+		fmt.Printf("Error listen: %s", err.Error())
+		return
+	}
+
+	// Intercept Ctrl-C for normal shutdown
+	var sig = make(chan os.Signal)
+	signal.Notify(sig, syscall.SIGINT)
+	go func(sig chan os.Signal, ln net.Listener) {
+		select {
+		case <-sig:
+			fmt.Println(" Interrupt! Close http server...")
+			_ = ln.Close()
+		}
+	}(sig, ln)
+
+	http.Serve(ln, nil)
 }
