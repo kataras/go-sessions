@@ -48,10 +48,8 @@ func destructor(ldb *impl) {
 	if ldb.DB == nil {
 		return
 	}
-	println("Goroutine pre...")
 	ldb.doCloseUp <- true
 	ldb.doCloseDone.Wait()
-	println("Goroutine done")
 
 	ldb.Err = ldb.DB.CompactRange(util.Range{Limit: nil, Start: nil})
 	if ldb.Err != nil {
@@ -153,6 +151,8 @@ func (ldb *impl) Load(id string) (ret map[string]interface{}) {
 
 // Update updates the store
 func (ldb *impl) Update(id string, values map[string]interface{}) {
+	var err error
+	var rec record.Record
 	if len(values) == 0 {
 		go func(id string) {
 			if err := ldb.DB.Delete([]byte(id), (*opt.WriteOptions)(ldb.Cfg.WriteOptions)); err != nil {
@@ -160,20 +160,19 @@ func (ldb *impl) Update(id string, values map[string]interface{}) {
 			}
 		}(id)
 	} else {
-		go func(id string, values map[string]interface{}) {
-			var val []byte
+		if rec.Data, err = SerializeBytes(values); err != nil {
+			println("Error serialize value for key='" + id + "': " + err.Error())
+			return
+		}
+		go func(id string, rec record.Record) {
 			var err error
-			var rec record.Record
-			if rec.Data, err = SerializeBytes(values); err != nil {
-				println("Error serialize value for key='" + id + "': " + err.Error())
-				return
-			}
+			var val []byte
 			rec.DeathTime = time.Now().In(time.Local).Add(ldb.Cfg.MaxAge)
 			val, err = SerializeBytes(rec)
 			if err = ldb.DB.Put([]byte(id), val, (*opt.WriteOptions)(ldb.Cfg.WriteOptions)); err != nil {
 				println("Error put key='" + id + "' to database LevelDB(" + ldb.Cfg.Path + "): " + err.Error())
 			}
-		}(id, values)
+		}(id, rec)
 	}
 }
 
