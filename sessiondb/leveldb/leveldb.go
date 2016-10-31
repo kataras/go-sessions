@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/kataras/go-sessions/sessiondb/leveldb/record"
+	"gopkg.in/kataras/go-sessions.v0/sessiondb/leveldb/record"
 
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/iterator"

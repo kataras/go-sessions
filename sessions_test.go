@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"github.com/gavv/httpexpect"
 	"github.com/kataras/go-errors"
-	"github.com/kataras/go-serializer"
+	"gopkg.in/kataras/go-serializer.v0"
 	"io"
 	"io/ioutil"
 	"net/http"

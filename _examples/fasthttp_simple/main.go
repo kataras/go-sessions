@@ -4,7 +4,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/kataras/go-sessions"
+	"gopkg.in/kataras/go-sessions.v0"
 	"github.com/valyala/fasthttp"
 )
 

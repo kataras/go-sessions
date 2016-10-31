@@ -4,9 +4,19 @@ package main
 
 import (
 	"fmt"
-	"github.com/kataras/go-sessions"
+	"gopkg.in/kataras/go-sessions.v0"
 	"net/http"
+	"time"
 )
+
+var mySessionsConfig = sessions.Config{Cookie: "mysessioncookieid",
+	DecodeCookie:                false,
+	Expires:                     time.Duration(2) * time.Hour,
+	GcDuration:                  time.Duration(2) * time.Hour,
+	DisableSubdomainPersistence: false,
+}
+
+var mySessions = sessions.New(mySessionsConfig)
 
 func main() {
 
@@ -18,8 +28,8 @@ func main() {
 			"Secret": "dsads£2132215£%%Ssdsa",
 		}
 
-		sess := sessions.Start(res, req) // init the session
-		// sessions.Start returns:
+		sess := mySessions.Start(res, req) // init the session
+		// mySessions.Start returns:
 		// type Session interface {
 		//  ID() string
 		//	Get(string) interface{}
@@ -41,8 +51,8 @@ func main() {
 
 	// get the values from the session
 	getHandler := http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		sess := sessions.Start(res, req) // init the session
-		sessValues := sess.GetAll()      // get all values from this session
+		sess := mySessions.Start(res, req) // init the session
+		sessValues := sess.GetAll()        // get all values from this session
 
 		res.Write([]byte(fmt.Sprintf("%#v", sessValues)))
 	})
@@ -50,14 +60,14 @@ func main() {
 
 	// clear all values from the session
 	clearHandler := http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		sess := sessions.Start(res, req)
+		sess := mySessions.Start(res, req) // init the session
 		sess.Clear()
 	})
 	http.Handle("/clear/", clearHandler)
 
 	// destroys the session, clears the values and removes the server-side entry and client-side sessionid cookie
 	destroyHandler := http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		sessions.Destroy(res, req)
+		mySessions.Destroy(res, req)
 	})
 	http.Handle("/destroy/", destroyHandler)
 

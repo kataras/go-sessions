@@ -28,7 +28,7 @@ Quick view
 -----------
 
 ```go
-import "github.com/kataras/go-sessions"
+import "gopkg.in/kataras/go-sessions.v0"
 
 sess := sessions.Start(http.ResponseWriter, *http.Request)
 sess.ID() string
@@ -48,7 +48,7 @@ Installation
 The only requirement is the [Go Programming Language](https://golang.org/dl), at least v1.7.
 
 ```bash
-$ go get -u github.com/kataras/go-sessions
+$ go get -u gopkg.in/kataras/go-sessions.v0
 ```
 
 Features
@@ -63,7 +63,7 @@ Features
 Docs
 ------------
 
-Take a look at the [./examples](https://github.com/kataras/go-sessions/tree/master/examples).
+Take a look at the [./examples](https://github.com/kataras/go-sessions/tree/master/_examples).
 
 
 **OUTLINE**
@@ -113,7 +113,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/kataras/go-sessions"
+	"gopkg.in/kataras/go-sessions.v0"
 	"net/http"
 )
 
@@ -202,7 +202,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/kataras/go-sessions"
+	"gopkg.in/kataras/go-sessions.v0"
 	"github.com/valyala/fasthttp"
 )
 
