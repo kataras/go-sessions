@@ -56,14 +56,14 @@ Features
 - Focus on simplicity and performance, it's the fastest sessions provider in Go world.
 - Cleans the temp memory when a session is idle, and re-allocates it to the temp memory when it's necessary.
 - The most used sessions are optimized to be in the front of the memory's list.
-- Supports any type of [external database](https://github.com/kataras/go-sessions/tree/master/examples/3_redis_sessiondb).
+- Supports any type of [external database](https://github.com/kataras/go-sessions/tree/0.0.5/_examples/3_redis_sessiondb).
 - Works with both [net/http](https://golang.org/pkg/net/http/) and [valyala/fasthttp](https://github.com/valyala/fasthttp).
 
 
 Docs
 ------------
 
-Take a look at the [./examples](https://github.com/kataras/go-sessions/tree/master/_examples).
+Take a look at the [./examples](https://github.com/kataras/go-sessions/tree/0.0.5/_examples).
 
 
 **OUTLINE**
