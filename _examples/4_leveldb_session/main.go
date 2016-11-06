@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/kataras/go-sessions"
-	"github.com/kataras/go-sessions/sessiondb/leveldb"
+	"gopkg.in/kataras/go-sessions.v0"
+	"gopkg.in/kataras/go-sessions.v0/sessiondb/leveldb"
 )
 
 var mySessionsConfig = sessions.Config{Cookie: "mysessioncookieid",
@@ -48,18 +48,7 @@ func Main() {
 		}
 
 		sess := mySessions.Start(res, req) // init the session
-		// mySessions.Start returns:
-		// type Session interface {
-		//  ID() string
-		//	Get(string) interface{}
-		//	GetString(key string) string
-		//	GetInt(key string) int
-		//	GetAll() map[string]interface{}
-		//	VisitAll(cb func(k string, v interface{}))
-		//	Set(string, interface{})
-		//	Delete(string)
-		//	Clear()
-		//}
+
 		for k, v := range values {
 			sess.Set(k, v) // fill session, set each of the key-value pair
 		}

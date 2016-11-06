@@ -1,7 +1,7 @@
 package sessions
 
 import (
-	"github.com/kataras/go-errors"
+	"gopkg.in/kataras/go-errors.v0"
 	"strconv"
 	"sync"
 	"time"

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 
-	"github.com/kataras/go-sessions/sessiondb/redis/service"
+	"gopkg.in/kataras/go-sessions.v0/sessiondb/redis/service"
 )
 
 // Database the redis database for q sessions

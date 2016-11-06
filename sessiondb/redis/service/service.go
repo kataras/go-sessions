@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/garyburd/redigo/redis"
-	"github.com/kataras/go-errors"
+	"gopkg.in/kataras/go-errors.v0"
 )
 
 var (
