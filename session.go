@@ -1,6 +1,8 @@
 package sessions
 
 import (
+	"github.com/kataras/go-errors"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -13,7 +15,11 @@ type (
 		ID() string
 		Get(string) interface{}
 		GetString(key string) string
-		GetInt(key string) int
+		GetInt(key string) (int, error)
+		GetInt64(key string) (int64, error)
+		GetFloat32(key string) (float32, error)
+		GetFloat64(key string) (float64, error)
+		GetBoolean(key string) (bool, error)
 		GetAll() map[string]interface{}
 		VisitAll(cb func(k string, v interface{}))
 		Set(string, interface{})
@@ -58,15 +64,82 @@ func (s *session) GetString(key string) string {
 	return ""
 }
 
-// GetInt same as Get but returns as int, if nil then returns -1
-func (s *session) GetInt(key string) int {
-	if value := s.Get(key); value != nil {
-		if v, ok := value.(int); ok {
-			return v
-		}
+var errFindParse = errors.New("Unable to find the %s with key: %s. Found? %#v")
+
+// GetInt same as Get but returns as int, if not found then returns -1 and an error
+func (s *session) GetInt(key string) (int, error) {
+	v := s.Get(key)
+	if vint, ok := v.(int); ok {
+		return vint, nil
+	} else if vstring, sok := v.(string); sok {
+		return strconv.Atoi(vstring)
 	}
 
-	return -1
+	return -1, errFindParse.Format("int", key, v)
+}
+
+// GetInt64 same as Get but returns as int64, if not found then returns -1 and an error
+func (s *session) GetInt64(key string) (int64, error) {
+	v := s.Get(key)
+	if vint64, ok := v.(int64); ok {
+		return vint64, nil
+	} else if vint, ok := v.(int); ok {
+		return int64(vint), nil
+	} else if vstring, sok := v.(string); sok {
+		return strconv.ParseInt(vstring, 10, 64)
+	}
+
+	return -1, errFindParse.Format("int64", key, v)
+
+}
+
+// GetFloat32 same as Get but returns as float32, if not found then returns -1 and an error
+func (s *session) GetFloat32(key string) (float32, error) {
+	v := s.Get(key)
+	if vfloat32, ok := v.(float32); ok {
+		return vfloat32, nil
+	} else if vfloat64, ok := v.(float64); ok {
+		return float32(vfloat64), nil
+	} else if vint, ok := v.(int); ok {
+		return float32(vint), nil
+	} else if vstring, sok := v.(string); sok {
+		vfloat64, err := strconv.ParseFloat(vstring, 32)
+		if err != nil {
+			return -1, err
+		}
+		return float32(vfloat64), nil
+	}
+
+	return -1, errFindParse.Format("float32", key, v)
+}
+
+// GetFloat64 same as Get but returns as float64, if not found then returns -1 and an error
+func (s *session) GetFloat64(key string) (float64, error) {
+	v := s.Get(key)
+	if vfloat32, ok := v.(float32); ok {
+		return float64(vfloat32), nil
+	} else if vfloat64, ok := v.(float64); ok {
+		return vfloat64, nil
+	} else if vint, ok := v.(int); ok {
+		return float64(vint), nil
+	} else if vstring, sok := v.(string); sok {
+		return strconv.ParseFloat(vstring, 32)
+	}
+
+	return -1, errFindParse.Format("float64", key, v)
+}
+
+// GetBoolean same as Get but returns as boolean, if not found then returns -1 and an error
+func (s *session) GetBoolean(key string) (bool, error) {
+	v := s.Get(key)
+	// here we could check for "true", "false" and 0 for false and 1 for true
+	// but this may cause unexpected behavior from the developer if they expecting an error
+	// so we just check if bool, if yes then return that bool, otherwise return false and an error
+	if vb, ok := v.(bool); ok {
+		return vb, nil
+	}
+
+	return false, errFindParse.Format("bool", key, v)
 }
 
 // GetAll returns all session's values

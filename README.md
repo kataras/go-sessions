@@ -1,14 +1,11 @@
-
 <p align="center">
 
  <a href="https://github.com/kataras/go-sessions"><img  width="600"  src="https://github.com/kataras/go-sessions/raw/master/logo_900_273_bg_white.png"></a>
  <br/><br/>
 
-
-
  <a href="https://travis-ci.org/kataras/go-sessions"><img src="https://img.shields.io/travis/kataras/go-sessions.svg?style=flat-square" alt="Build Status"></a>
  <a href="https://github.com/kataras/go-sessions/blob/master/LICENSE"><img src="https://img.shields.io/badge/%20license-MIT%20%20License%20-E91E63.svg?style=flat-square" alt="License"></a>
- <a href="https://github.com/kataras/go-sessions/releases"><img src="https://img.shields.io/badge/%20release%20-%20v0.0.5-blue.svg?style=flat-square" alt="Releases"></a>
+ <a href="https://github.com/kataras/go-sessions/releases"><img src="https://img.shields.io/badge/%20release%20-%20v0.0.6-blue.svg?style=flat-square" alt="Releases"></a>
  <a href="#docs"><img src="https://img.shields.io/badge/%20docs-reference-5272B4.svg?style=flat-square" alt="Read me docs"></a>
  <br/>
  <a href="https://kataras.rocket.chat/channel/go-sessions"><img src="https://img.shields.io/badge/%20community-chat-00BCD4.svg?style=flat-square" alt="Build Status"></a>
@@ -34,7 +31,11 @@ sess := sessions.Start(http.ResponseWriter, *http.Request)
 sess.ID() string
 sess.Get(string) interface{}
 sess.GetString(key string) string
-sess.GetInt(key string) int
+sess.GetInt(key string) (int, error)
+sess.GetInt64(key string) (int64, error)
+sess.GetFloat32(key string) (float32, error)
+sess.GetFloat64(key string) (float64, error)
+sess.GetBoolean(key string) (bool, error)
 sess.GetAll() map[string]interface{}
 sess.VisitAll(cb func(k string, v interface{}))
 sess.Set(string, interface{})
@@ -99,7 +100,11 @@ type Session interface {
   ID() string
   Get(string) interface{}
   GetString(key string) string
-  GetInt(key string) int
+  GetInt(key string) (int, error)
+  GetInt64(key string) (int64, error)
+  GetFloat32(key string) (float32, error)
+  GetFloat64(key string) (float64, error)
+  GetBoolean(key string) (bool, error)
   GetAll() map[string]interface{}
   VisitAll(cb func(k string, v interface{}))
   Set(string, interface{})
@@ -128,18 +133,7 @@ func main() {
 		}
 
 		sess := sessions.Start(res, req) // init the session
-    // sessions.Start returns:
-		// type Session interface {
-		//  ID() string
-		//	Get(string) interface{}
-		//	GetString(key string) string
-		//	GetInt(key string) int
-		//	GetAll() map[string]interface{}
-		//	VisitAll(cb func(k string, v interface{}))
-		//	Set(string, interface{})
-		//	Delete(string)
-		//	Clear()
-		//}
+    // sessions.Start returns the Session interface we saw before
 
 		for k, v := range values {
 			sess.Set(k, v) // fill session, set each of the key-value pair
@@ -188,7 +182,11 @@ type Session interface {
   ID() string
   Get(string) interface{}
   GetString(key string) string
-  GetInt(key string) int
+  GetInt(key string) (int, error)
+  GetInt64(key string) (int64, error)
+  GetFloat32(key string) (float32, error)
+  GetFloat64(key string) (float64, error)
+  GetBoolean(key string) (bool, error)
   GetAll() map[string]interface{}
   VisitAll(cb func(k string, v interface{}))
   Set(string, interface{})
@@ -217,18 +215,7 @@ func main() {
 		}
 
 		sess := sessions.StartFasthttp(reqCtx) // init the session
-		// sessions.StartFasthttp returns:
-		// type Session interface {
-		//  ID() string
-		//	Get(string) interface{}
-		//	GetString(key string) string
-		//	GetInt(key string) int
-		//	GetAll() map[string]interface{}
-		//	VisitAll(cb func(k string, v interface{}))
-		//	Set(string, interface{})
-		//	Delete(string)
-		//	Clear()
-		//}
+		// sessions.StartFasthttp returns the, same, Session interface we saw before too
 
 		for k, v := range values {
 			sess.Set(k, v) // fill session, set each of the key-value pair
@@ -290,7 +277,7 @@ If you'd like to discuss this package, or ask questions about it, feel free to
 Versioning
 ------------
 
-Current: **v0.0.5**
+Current: **v0.0.6**
 
 Read more about Semantic Versioning 2.0.0
 
@@ -320,7 +307,7 @@ License can be found [here](LICENSE).
 [Travis]: http://travis-ci.org/kataras/go-sessions
 [License Widget]: https://img.shields.io/badge/license-MIT%20%20License%20-E91E63.svg?style=flat-square
 [License]: https://github.com/kataras/go-sessions/blob/master/LICENSE
-[Release Widget]: https://img.shields.io/badge/release-v0.0.5-blue.svg?style=flat-square
+[Release Widget]: https://img.shields.io/badge/release-v0.0.6-blue.svg?style=flat-square
 [Release]: https://github.com/kataras/go-sessions/releases
 [Chat Widget]: https://img.shields.io/badge/community-chat-00BCD4.svg?style=flat-square
 [Chat]: https://kataras.rocket.chat/channel/go-sessions
