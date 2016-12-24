@@ -35,7 +35,7 @@ import (
 
 const (
 	// Version current version number
-	Version = "0.0.6"
+	Version = "0.0.7"
 )
 
 type (

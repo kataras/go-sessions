@@ -37,6 +37,7 @@ func (p *Provider) NewSession(sid string, expires time.Duration) Session {
 		provider:         p,
 		lastAccessedTime: time.Now(),
 		values:           p.loadSessionValues(sid),
+		flashes:          make(map[string]*flashMessage),
 	}
 	if expires > 0 { // if not unlimited life duration and no -1 (cookie remove action is based on browser's session)
 		time.AfterFunc(expires, func() {
@@ -78,12 +79,15 @@ func (p *Provider) Init(sid string, expires time.Duration) Session {
 	return newSession
 }
 
-// Read returns the store which sid parameter is belongs
+// Read returns the store which sid parameter belongs
 func (p *Provider) Read(sid string, expires time.Duration) Session {
 	p.mu.Lock()
 	if elem, found := p.sessions[sid]; found {
 		p.mu.Unlock() // yes defer is slow
-		elem.Value.(*session).lastAccessedTime = time.Now()
+		sess := elem.Value.(*session)
+		sess.lastAccessedTime = time.Now()
+		// run the flash messages GC, new request here of existing session
+		sess.runFlashGC()
 		return elem.Value.(*session)
 	}
 	p.mu.Unlock()
@@ -92,12 +96,15 @@ func (p *Provider) Read(sid string, expires time.Duration) Session {
 	return sess
 }
 
-// Destroy destroys the session, removes all sessions values, the session itself and updates the registered session databases, this called from sessionManager which removes the client's cookie also.
+// Destroy destroys the session, removes all sessions and flash values,
+// the session itself and updates the registered session databases,
+// this called from sessionManager which removes the client's cookie also.
 func (p *Provider) Destroy(sid string) {
 	p.mu.Lock()
 	if elem, found := p.sessions[sid]; found {
 		sess := elem.Value.(*session)
 		sess.values = nil
+		sess.flashes = nil
 		p.updateDatabases(sid, nil)
 		delete(p.sessions, sid)
 		p.list.Remove(elem)

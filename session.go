@@ -14,27 +14,47 @@ type (
 	Session interface {
 		ID() string
 		Get(string) interface{}
+		HasFlash() bool
+		GetFlash(string) interface{}
 		GetString(key string) string
+		GetFlashString(string) string
 		GetInt(key string) (int, error)
 		GetInt64(key string) (int64, error)
 		GetFloat32(key string) (float32, error)
 		GetFloat64(key string) (float64, error)
 		GetBoolean(key string) (bool, error)
 		GetAll() map[string]interface{}
+		GetFlashes() map[string]interface{}
 		VisitAll(cb func(k string, v interface{}))
 		Set(string, interface{})
+		SetFlash(string, interface{})
 		Delete(string)
 		Clear()
+		ClearFlashes()
 	}
+
 	// session is an 'object' which wraps the session provider with its session databases, only frontend user has access to this session object.
 	// implements the Session interface
 	session struct {
-		sid              string
-		values           map[string]interface{} // here are the real values
+		sid    string
+		values map[string]interface{} // here are the real values
+		// we could set the flash messages inside values but this will bring us more problems
+		// because of session databases and because of
+		// users may want to get all sessions and save them or display them
+		// but without temp values (flash messages) which are removed after fetching.
+		// so introduce a new field here.
+		// NOTE: flashes are not managed by third-party, only inside session struct.
+		flashes          map[string]*flashMessage
 		mu               sync.Mutex
 		lastAccessedTime time.Time
 		createdAt        time.Time
 		provider         *Provider
+	}
+
+	flashMessage struct {
+		// if true then this flash message is removed on the flash gc
+		shouldRemove bool
+		value        interface{}
 	}
 )
 
@@ -52,13 +72,56 @@ func (s *session) Get(key string) interface{} {
 	return nil
 }
 
+// when running on the session manager removes any 'old' flash messages
+func (s *session) runFlashGC() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for key, v := range s.flashes {
+		if v.shouldRemove {
+			delete(s.flashes, key)
+		}
+	}
+}
+
+// HasFlash returns true if this request has available flash messages
+func (s *session) HasFlash() bool {
+	s.runFlashGC()
+	return s.flashes != nil && len(s.flashes) > 0
+}
+
+// GetFlash returns a flash message which removed on the next request
+//
+// To check for flash messages we use the HasFlash() Method
+// and to obtain the flash message we use the GetFlash() Method.
+// There is also a method GetFlashes() to fetch all the messages.
+//
+// Fetching a message deletes it from the session.
+// This means that a message is meant to be displayed only on the first page served to the user
+func (s *session) GetFlash(key string) interface{} {
+	if value, found := s.flashes[key]; found {
+		value.shouldRemove = true
+		return value
+	}
+	return nil
+}
+
 // GetString same as Get but returns as string, if nil then returns an empty string
 func (s *session) GetString(key string) string {
 	if value := s.Get(key); value != nil {
 		if v, ok := value.(string); ok {
 			return v
 		}
+	}
 
+	return ""
+}
+
+// GetFlashString same as GetFlash but returns as string, if nil then returns an empty string
+func (s *session) GetFlashString(key string) string {
+	if value := s.GetFlash(key); value != nil {
+		if v, ok := value.(string); ok {
+			return v
+		}
 	}
 
 	return ""
@@ -147,6 +210,17 @@ func (s *session) GetAll() map[string]interface{} {
 	return s.values
 }
 
+// GetFlashes returns all flash messages as map[string](key) and interface{} value
+// NOTE: this will cause at remove all current flash messages on the next request of the same user
+func (s *session) GetFlashes() map[string]interface{} {
+	flashes := make(map[string]interface{}, len(s.flashes))
+	for key, v := range s.flashes {
+		flashes[key] = v.value
+		v.shouldRemove = true
+	}
+	return flashes
+}
+
 // VisitAll loop each one entry and calls the callback function func(key,value)
 func (s *session) VisitAll(cb func(k string, v interface{})) {
 	for key := range s.values {
@@ -161,6 +235,32 @@ func (s *session) Set(key string, value interface{}) {
 	s.values[key] = value
 	s.mu.Unlock()
 	s.provider.update(s.sid)
+}
+
+// SetFlash sets a flash message by its key.
+//
+// A flash message is used in order to keep a message in session through one or several requests of the same user.
+// It is removed from session after it has been displayed to the user.
+// Flash messages are usually used in combination with HTTP redirections,
+// because in this case there is no view, so messages can only be displayed in the request that follows redirection.
+//
+// A flash message has a name and a content (AKA key and value).
+// It is an entry of an associative array. The name is a string: often "notice", "success", or "error", but it can be anything.
+// The content is usually a string. You can put HTML tags in your message if you display it raw.
+// You can also set the message value to a number or an array: it will be serialized and kept in session like a string.
+//
+// Flash messages can be set using the SetFlash() Method
+// For example, if you would like to inform the user that his changes were successfully saved,
+// you could add the following line to your Handler:
+//
+// SetFlash("success", "Data saved!");
+//
+// In this example we used the key 'success'.
+// If you want to define more than one flash messages, you will have to use different keys
+func (s *session) SetFlash(key string, value interface{}) {
+	s.mu.Lock()
+	s.flashes[key] = &flashMessage{value: value}
+	s.mu.Unlock()
 }
 
 // Delete removes an entry by its key
@@ -180,4 +280,13 @@ func (s *session) Clear() {
 	}
 	s.mu.Unlock()
 	s.provider.update(s.sid)
+}
+
+// Clear removes all flash messages
+func (s *session) ClearFlashes() {
+	s.mu.Lock()
+	for key := range s.flashes {
+		delete(s.flashes, key)
+	}
+	s.mu.Unlock()
 }

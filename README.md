@@ -5,7 +5,7 @@
 
  <a href="https://travis-ci.org/kataras/go-sessions"><img src="https://img.shields.io/travis/kataras/go-sessions.svg?style=flat-square" alt="Build Status"></a>
  <a href="https://github.com/kataras/go-sessions/blob/master/LICENSE"><img src="https://img.shields.io/badge/%20license-MIT%20%20License%20-E91E63.svg?style=flat-square" alt="License"></a>
- <a href="https://github.com/kataras/go-sessions/releases"><img src="https://img.shields.io/badge/%20release%20-%20v0.0.6-blue.svg?style=flat-square" alt="Releases"></a>
+ <a href="https://github.com/kataras/go-sessions/releases"><img src="https://img.shields.io/badge/%20release%20-%20v0.0.7-blue.svg?style=flat-square" alt="Releases"></a>
  <a href="#docs"><img src="https://img.shields.io/badge/%20docs-reference-5272B4.svg?style=flat-square" alt="Read me docs"></a>
  <br/>
  <a href="https://kataras.rocket.chat/channel/go-sessions"><img src="https://img.shields.io/badge/%20community-chat-00BCD4.svg?style=flat-square" alt="Build Status"></a>
@@ -28,19 +28,26 @@ Quick view
 import "github.com/kataras/go-sessions"
 
 sess := sessions.Start(http.ResponseWriter, *http.Request)
-sess.ID() string
-sess.Get(string) interface{}
-sess.GetString(key string) string
-sess.GetInt(key string) (int, error)
-sess.GetInt64(key string) (int64, error)
-sess.GetFloat32(key string) (float32, error)
-sess.GetFloat64(key string) (float64, error)
-sess.GetBoolean(key string) (bool, error)
-sess.GetAll() map[string]interface{}
-sess.VisitAll(cb func(k string, v interface{}))
-sess.Set(string, interface{})
-sess.Delete(string)
-sess.Clear()
+sess.
+  ID() string
+  Get(string) interface{}
+  HasFlash() bool
+  GetFlash(string) interface{}
+  GetFlashString(string) string
+  GetString(key string) string
+  GetInt(key string) (int, error)
+  GetInt64(key string) (int64, error)
+  GetFloat32(key string) (float32, error)
+  GetFloat64(key string) (float64, error)
+  GetBoolean(key string) (bool, error)
+  GetAll() map[string]interface{}
+  GetFlashes() map[string]interface{}
+  VisitAll(cb func(k string, v interface{}))
+  Set(string, interface{})
+  SetFlash(string, interface{})
+  Delete(string)
+  Clear()
+  ClearFlashes()
 
 ```
 
@@ -55,6 +62,7 @@ $ go get -u github.com/kataras/go-sessions
 Features
 ------------
 - Focus on simplicity and performance, it's the fastest sessions provider in Go world.
+- Flash messages
 - Cleans the temp memory when a session is idle, and re-allocates it to the temp memory when it's necessary.
 - The most used sessions are optimized to be in the front of the memory's list.
 - Supports any type of [external database](https://github.com/kataras/go-sessions/tree/master/_examples/3_redis_sessiondb).
@@ -96,20 +104,26 @@ Usage NET/HTTP
 `Start` returns a `Session`, **Session outline**
 
 ```go
-type Session interface {
+Session interface {
   ID() string
   Get(string) interface{}
+  HasFlash() bool
+  GetFlash(string) interface{}
   GetString(key string) string
+  GetFlashString(string) string
   GetInt(key string) (int, error)
   GetInt64(key string) (int64, error)
   GetFloat32(key string) (float32, error)
   GetFloat64(key string) (float64, error)
   GetBoolean(key string) (bool, error)
   GetAll() map[string]interface{}
+  GetFlashes() map[string]interface{}
   VisitAll(cb func(k string, v interface{}))
   Set(string, interface{})
+  SetFlash(string, interface{})
   Delete(string)
   Clear()
+  ClearFlashes()
 }
 ```
 
@@ -178,20 +192,26 @@ Usage FASTHTTP
 `StartFasthttp` returns again `Session`, **Session outline**
 
 ```go
-type Session interface {
+Session interface {
   ID() string
   Get(string) interface{}
+  HasFlash() bool
+  GetFlash(string) interface{}
   GetString(key string) string
+  GetFlashString(string) string
   GetInt(key string) (int, error)
   GetInt64(key string) (int64, error)
   GetFloat32(key string) (float32, error)
   GetFloat64(key string) (float64, error)
   GetBoolean(key string) (bool, error)
   GetAll() map[string]interface{}
+  GetFlashes() map[string]interface{}
   VisitAll(cb func(k string, v interface{}))
   Set(string, interface{})
+  SetFlash(string, interface{})
   Delete(string)
   Clear()
+  ClearFlashes()
 }
 ```
 
@@ -277,7 +297,7 @@ If you'd like to discuss this package, or ask questions about it, feel free to
 Versioning
 ------------
 
-Current: **v0.0.6**
+Current: **v0.0.7**
 
 Read more about Semantic Versioning 2.0.0
 
@@ -307,7 +327,7 @@ License can be found [here](LICENSE).
 [Travis]: http://travis-ci.org/kataras/go-sessions
 [License Widget]: https://img.shields.io/badge/license-MIT%20%20License%20-E91E63.svg?style=flat-square
 [License]: https://github.com/kataras/go-sessions/blob/master/LICENSE
-[Release Widget]: https://img.shields.io/badge/release-v0.0.6-blue.svg?style=flat-square
+[Release Widget]: https://img.shields.io/badge/release-v0.0.7-blue.svg?style=flat-square
 [Release]: https://github.com/kataras/go-sessions/releases
 [Chat Widget]: https://img.shields.io/badge/community-chat-00BCD4.svg?style=flat-square
 [Chat]: https://kataras.rocket.chat/channel/go-sessions
