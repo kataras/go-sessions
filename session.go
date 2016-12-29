@@ -1,10 +1,11 @@
 package sessions
 
 import (
-	"github.com/kataras/go-errors"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/kataras/go-errors"
 )
 
 type (
@@ -29,6 +30,7 @@ type (
 		Set(string, interface{})
 		SetFlash(string, interface{})
 		Delete(string)
+		DeleteFlash(string)
 		Clear()
 		ClearFlashes()
 	}
@@ -66,6 +68,9 @@ func (s *session) ID() string {
 // Get returns the value of an entry by its key
 func (s *session) Get(key string) interface{} {
 	s.provider.update(s.sid)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if value, found := s.values[key]; found {
 		return value
 	}
@@ -85,7 +90,6 @@ func (s *session) runFlashGC() {
 
 // HasFlash returns true if this request has available flash messages
 func (s *session) HasFlash() bool {
-	s.runFlashGC()
 	return s.flashes != nil && len(s.flashes) > 0
 }
 
@@ -98,9 +102,11 @@ func (s *session) HasFlash() bool {
 // Fetching a message deletes it from the session.
 // This means that a message is meant to be displayed only on the first page served to the user
 func (s *session) GetFlash(key string) interface{} {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if value, found := s.flashes[key]; found {
 		value.shouldRemove = true
-		return value
+		return value.value
 	}
 	return nil
 }
@@ -264,12 +270,18 @@ func (s *session) SetFlash(key string, value interface{}) {
 }
 
 // Delete removes an entry by its key
-// returns an error, which is always nil
 func (s *session) Delete(key string) {
 	s.mu.Lock()
 	delete(s.values, key)
 	s.mu.Unlock()
 	s.provider.update(s.sid)
+}
+
+// DeleteFlash removes a flash message by its key
+func (s *session) DeleteFlash(key string) {
+	s.mu.Lock()
+	delete(s.flashes, key)
+	s.mu.Unlock()
 }
 
 // Clear removes all entries

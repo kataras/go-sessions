@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/gob"
-	"github.com/valyala/fasthttp"
 	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/valyala/fasthttp"
 )
 
 var (
@@ -34,7 +35,7 @@ func GetCookie(name string, req *http.Request) string {
 // AddCookie adds a cookie
 func AddCookie(cookie *http.Cookie, res http.ResponseWriter) {
 	if v := cookie.String(); v != "" {
-		res.Header().Add("Set-Cookie", v)
+		http.SetCookie(res, cookie)
 	}
 }
 

@@ -27,10 +27,11 @@ package sessions
 
 import (
 	"encoding/base64"
-	"github.com/valyala/fasthttp"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/valyala/fasthttp"
 )
 
 const (
@@ -126,10 +127,10 @@ func (s *sessions) Start(res http.ResponseWriter, req *http.Request) Session {
 	cookieValue := GetCookie(s.config.Cookie, req)
 
 	if cookieValue == "" { // cookie doesn't exists, let's generate a session and add set a cookie
-		sid := GenerateSessionID(s.config.CookieLength)
+		sid := SessionIDGenerator(s.config.CookieLength)
 		sess = s.provider.Init(sid, s.config.Expires)
-		//cookie := &http.Cookie{}
-		cookie := AcquireCookie()
+		cookie := &http.Cookie{}
+
 		// The RFC makes no mention of encoding url value, so here I think to encode both sessionid key and the value using the safe(to put and to use as cookie) url-encoding
 		cookie.Name = s.config.Cookie
 		cookie.Value = sid
@@ -174,7 +175,6 @@ func (s *sessions) Start(res http.ResponseWriter, req *http.Request) Session {
 		} // if it's -1 then the cookie is deleted when the browser closes
 
 		AddCookie(cookie, res)
-		ReleaseCookie(cookie)
 	} else {
 		sess = s.provider.Read(cookieValue, s.config.Expires)
 	}
@@ -208,10 +208,9 @@ func (s *sessions) StartFasthttp(reqCtx *fasthttp.RequestCtx) Session {
 	cookieValue := GetFasthttpCookie(s.config.Cookie, reqCtx)
 
 	if cookieValue == "" { // cookie doesn't exists, let's generate a session and add set a cookie
-		sid := GenerateSessionID(s.config.CookieLength)
+		sid := SessionIDGenerator(s.config.CookieLength)
 		sess = s.provider.Init(sid, s.config.Expires)
 		cookie := fasthttp.AcquireCookie()
-		//cookie := &fasthttp.Cookie{}
 		// The RFC makes no mention of encoding url value, so here I think to encode both sessionid key and the value using the safe(to put and to use as cookie) url-encoding
 		cookie.SetKey(s.config.Cookie)
 		cookie.SetValue(sid)
@@ -303,7 +302,10 @@ func (s *sessions) GC() {
 	}()
 }
 
-// GenerateSessionID returns a random string, used to set the session id
-func GenerateSessionID(length int) string {
-	return base64.URLEncoding.EncodeToString(Random(length))
+// Global generator, no logic for per-manager for now.
+
+// SessionIDGenerator returns a random string, used to set the session id
+// you are able to override this to use your own method for generate session ids
+var SessionIDGenerator = func(strLength int) string {
+	return base64.URLEncoding.EncodeToString(Random(strLength))
 }

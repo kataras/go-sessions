@@ -83,12 +83,12 @@ func (p *Provider) Init(sid string, expires time.Duration) Session {
 func (p *Provider) Read(sid string, expires time.Duration) Session {
 	p.mu.Lock()
 	if elem, found := p.sessions[sid]; found {
-		p.mu.Unlock() // yes defer is slow
+		p.mu.Unlock()
 		sess := elem.Value.(*session)
 		sess.lastAccessedTime = time.Now()
 		// run the flash messages GC, new request here of existing session
 		sess.runFlashGC()
-		return elem.Value.(*session)
+		return sess
 	}
 	p.mu.Unlock()
 	// if not found create new
