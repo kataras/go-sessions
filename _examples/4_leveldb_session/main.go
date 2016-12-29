@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/kataras/go-sessions"
-	"github.com/kataras/go-sessions/sessiondb/leveldb"
+	"gopkg.in/kataras/go-sessions.v0"
+	"gopkg.in/kataras/go-sessions.v0/sessiondb/leveldb"
 )
 
 var mySessionsConfig = sessions.Config{Cookie: "mysessioncookieid",

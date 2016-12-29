@@ -25,7 +25,7 @@ Quick view
 -----------
 
 ```go
-import "github.com/kataras/go-sessions"
+import "gopkg.in/kataras/go-sessions.v0"
 
 sess := sessions.Start(http.ResponseWriter, *http.Request)
 sess.
@@ -56,7 +56,7 @@ Installation
 The only requirement is the [Go Programming Language](https://golang.org/dl), at least v1.7.
 
 ```bash
-$ go get -u github.com/kataras/go-sessions
+$ go get -u gopkg.in/kataras/go-sessions.v0
 ```
 
 Features
@@ -65,14 +65,14 @@ Features
 - Flash messages
 - Cleans the temp memory when a session is idle, and re-allocates it to the temp memory when it's necessary.
 - The most used sessions are optimized to be in the front of the memory's list.
-- Supports any type of [external database](https://github.com/kataras/go-sessions/tree/master/_examples/3_redis_sessiondb).
+- Supports any type of [external database](https://github.com/kataras/go-sessions/tree/0.0.7/_examples/3_redis_sessiondb).
 - Works with both [net/http](https://golang.org/pkg/net/http/) and [valyala/fasthttp](https://github.com/valyala/fasthttp).
 
 
 Docs
 ------------
 
-Take a look at the [./examples](https://github.com/kataras/go-sessions/tree/master/_examples).
+Take a look at the [./examples](https://github.com/kataras/go-sessions/tree/0.0.7/_examples).
 
 
 **OUTLINE**
@@ -90,7 +90,7 @@ DestroyFasthttp(*fasthttp.RequestCtx)
 
 // UseDatabase ,optionally, adds a session database to the manager's provider,
 // a session db doesn't have write access
-// see https://github.com/kataras/go-sessions/tree/master/sessiondb
+// see https://github.com/kataras/go-sessions/tree/0.0.7/sessiondb
 UseDatabase(Database)
 
 // UpdateConfig updates the configuration field (Config does not receives a pointer, so this is a way to update a pre-defined configuration)
@@ -132,7 +132,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/kataras/go-sessions"
+	"gopkg.in/kataras/go-sessions.v0"
 	"net/http"
 )
 
@@ -220,7 +220,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/kataras/go-sessions"
+	"gopkg.in/kataras/go-sessions.v0"
 	"github.com/valyala/fasthttp"
 )
 

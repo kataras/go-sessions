@@ -1,10 +1,12 @@
+// +build ignore
+
 package main
 
 import (
 	"fmt"
 	"net/http"
 
-	"github.com/kataras/go-sessions"
+	"gopkg.in/kataras/go-sessions.v0"
 )
 
 func main() {

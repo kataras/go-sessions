@@ -4,8 +4,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/kataras/go-sessions"
 	"github.com/valyala/fasthttp"
+	"gopkg.in/kataras/go-sessions.v0"
 )
 
 func main() {

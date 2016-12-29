@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gavv/httpexpect"
 	"github.com/kataras/go-errors"
-	"github.com/kataras/go-serializer"
+	"gopkg.in/gavv/httpexpect.v1"
+	"gopkg.in/kataras/go-serializer.v0"
 )
 
 var errReadBody = errors.New("While trying to read %s from the request body. Trace %s")
