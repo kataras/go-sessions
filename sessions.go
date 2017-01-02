@@ -125,8 +125,8 @@ func (s *sessions) Start(res http.ResponseWriter, req *http.Request) Session {
 	var sess Session
 
 	cookieValue := GetCookie(s.config.Cookie, req)
-
 	if cookieValue == "" { // cookie doesn't exists, let's generate a session and add set a cookie
+
 		sid := SessionIDGenerator(s.config.CookieLength)
 		sess = s.provider.Init(sid, s.config.Expires)
 		cookie := &http.Cookie{}
@@ -137,7 +137,7 @@ func (s *sessions) Start(res http.ResponseWriter, req *http.Request) Session {
 		cookie.Path = "/"
 		if !s.config.DisableSubdomainPersistence {
 
-			requestDomain := req.Host
+			requestDomain := req.URL.Host
 			if portIdx := strings.IndexByte(requestDomain, ':'); portIdx > 0 {
 				requestDomain = requestDomain[0:portIdx]
 			}
