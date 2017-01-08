@@ -88,6 +88,19 @@ StartFasthttp(*fasthttp.RequestCtx) Session
 // Destroy kills the valyala/fasthttp session and remove the associated cookie
 DestroyFasthttp(*fasthttp.RequestCtx)
 
+// DestroyByID removes the session entry
+// from the server-side memory (and database if registered).
+// Client's session cookie will still exist but it will be reseted on the next request.
+//
+// It's safe to use it even if you are not sure if a session with that id exists.
+// Works for both net/http & fasthttp
+DestroyByID(string)
+// DestroyAll removes all sessions
+// from the server-side memory (and database if registered).
+// Client's session cookie will still exist but it will be reseted on the next request.
+// Works for both net/http & fasthttp
+DestroyAll()
+
 // UseDatabase ,optionally, adds a session database to the manager's provider,
 // a session db doesn't have write access
 // see https://github.com/kataras/go-sessions/tree/master/sessiondb
