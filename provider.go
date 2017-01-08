@@ -112,6 +112,15 @@ func (p *Provider) Destroy(sid string) {
 	p.mu.Unlock()
 }
 
+// DestroyAll removes all sessions
+// from the server-side memory (and database if registered).
+// Client's session cookie will still exist but it will be reseted on the next request.
+func (p *Provider) DestroyAll() {
+	for sid := range p.sessions {
+		p.Destroy(sid)
+	}
+}
+
 // Update updates the lastAccessedTime, and moves the memory place element to the front
 // always returns a nil error, for now
 func (p *Provider) update(sid string) {

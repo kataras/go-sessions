@@ -36,7 +36,7 @@ import (
 
 const (
 	// Version current version number
-	Version = "0.0.7"
+	Version = "0.0.8"
 )
 
 type (
@@ -67,6 +67,19 @@ type (
 
 		// DestroyFasthttp kills the valyala/fasthttp session and remove the associated cookie
 		DestroyFasthttp(*fasthttp.RequestCtx)
+
+		// DestroyByID removes the session entry
+		// from the server-side memory (and database if registered).
+		// Client's session cookie will still exist but it will be reseted on the next request.
+		//
+		// It's safe to use it even if you are not sure if a session with that id exists.
+		// Works for both net/http & fasthttp
+		DestroyByID(string)
+		// DestroyAll removes all sessions
+		// from the server-side memory (and database if registered).
+		// Client's session cookie will still exist but it will be reseted on the next request.
+		// Works for both net/http & fasthttp
+		DestroyAll()
 	}
 
 	// sessions contains the cookie's name, the provider and a duration for GC and cookie life expire
@@ -194,6 +207,42 @@ func (s *sessions) Destroy(res http.ResponseWriter, req *http.Request) {
 	}
 	RemoveCookie(s.config.Cookie, res, req)
 	s.provider.Destroy(cookieValue)
+}
+
+// DestroyByID removes the session entry
+// from the server-side memory (and database if registered).
+// Client's session cookie will still exist but it will be reseted on the next request.
+//
+// It's safe to use it even if you are not sure if a session with that id exists.
+// Works for both net/http & fasthttp
+func DestroyByID(sid string) {
+	defaultSessions.DestroyByID(sid)
+}
+
+// DestroyByID removes the session entry
+// from the server-side memory (and database if registered).
+// Client's session cookie will still exist but it will be reseted on the next request.
+//
+// It's safe to use it even if you are not sure if a session with that id exists.
+// Works for both net/http & fasthttp
+func (s *sessions) DestroyByID(sid string) {
+	s.provider.Destroy(sid)
+}
+
+// DestroyAll removes all sessions
+// from the server-side memory (and database if registered).
+// Client's session cookie will still exist but it will be reseted on the next request.
+// Works for both net/http & fasthttp
+func DestroyAll() {
+	defaultSessions.DestroyAll()
+}
+
+// DestroyAll removes all sessions
+// from the server-side memory (and database if registered).
+// Client's session cookie will still exist but it will be reseted on the next request.
+// Works for both net/http & fasthttp
+func (s *sessions) DestroyAll() {
+	s.provider.DestroyAll()
 }
 
 // StartFasthttp starts the session for the particular valyala/fasthttp request

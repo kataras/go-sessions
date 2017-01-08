@@ -108,6 +108,14 @@ func TestSessionsNetHTTP(t *testing.T) {
 	})
 	mux.Handle("/destroy/", destroyHandler)
 
+	destroyallHandler := http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		DestroyAll()
+		writeSessValues(res, req)
+		res.WriteHeader(http.StatusOK)
+		// the cookie and all values should be empty
+	})
+	mux.Handle("/destroyall/", destroyallHandler)
+
 	afterDestroyHandler := http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
 	})
@@ -126,6 +134,15 @@ func TestSessionsNetHTTP(t *testing.T) {
 	// set and clear again
 	e.POST("/set/").WithJSON(values).Expect().Status(http.StatusOK).Cookies().NotEmpty()
 	e.GET("/clear/").Expect().Status(http.StatusOK).JSON().Object().Empty()
+	// test destroy all (single)
+	// destroy in order to set the full object without noise
+	e.GET("/destroy/").Expect().Status(http.StatusOK).JSON().Object().Empty()
+	// set,get and destroy with (all function)
+	e.POST("/set/").WithJSON(values).Expect().Status(http.StatusOK)
+	e.GET("/get/").Expect().Status(http.StatusOK).JSON().Object().Equal(values)
+	// test destory which also clears first
+	e.GET("/destroyall/").Expect().Status(http.StatusOK).JSON().Object().Empty()
+	e.GET("/after_destroy/").Expect().Status(http.StatusOK).Cookies().Empty()
 }
 
 func TestFlashMessages(t *testing.T) {
