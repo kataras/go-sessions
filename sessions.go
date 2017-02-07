@@ -129,7 +129,6 @@ func (s *sessions) Start(res http.ResponseWriter, req *http.Request) Session {
 
 	cookieValue := GetCookie(s.config.Cookie, req)
 	if cookieValue == "" { // cookie doesn't exists, let's generate a session and add set a cookie
-
 		sid := SessionIDGenerator(s.config.CookieLength)
 		sess = s.provider.Init(sid, s.config.Expires)
 		cookie := &http.Cookie{}

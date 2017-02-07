@@ -101,8 +101,10 @@ func (p *provider) Read(sid string, expires time.Duration) Session {
 func (p *provider) Destroy(sid string) {
 	p.mu.Lock()
 	if sess, found := p.sessions[sid]; found {
-		delete(p.sessions, sess.ID())
-		p.updateDatabases(sess.ID(), nil)
+		sess.values = nil
+		sess.flashes = nil
+		delete(p.sessions, sid)
+		p.updateDatabases(sid, nil)
 	}
 	p.mu.Unlock()
 
