@@ -17,14 +17,13 @@ const (
 )
 
 // Config the configuration for sessions
-// has 7 fields
+// has 6 fields
 // first is the cookieName, the session's name (string) ["mysessionsecretcookieid"]
 // second enable if you want to decode the cookie's key also
 // third is the time which the client's cookie expires
 // forth is the cookie length (sessionid) int, defaults to 32, do not change if you don't have any reason to do
-// fifth is the gcDuration (time.Duration) when this time passes it removes the unused sessions from the memory until the user come back
-// sixth is the DisableSubdomainPersistence which you can set it to true in order dissallow your q subdomains to have access to the session cook
-// seventh is the AutoStart which defaults to true, disable it in order to disable the autostart- GC when the session manager is created
+// fifth is the DisableSubdomainPersistence which you can set it to true in order dissallow your q subdomains to have access to the session cook
+// sixth is the AutoStart which defaults to true, disable it in order to disable the autostart- GC when the session manager is created
 //
 type (
 	// OptionSetter used as the type of return of a func which sets a configuration field's value
@@ -57,23 +56,10 @@ type (
 		// Defaults to 32
 		CookieLength int
 
-		// GcDuration every how much duration(GcDuration) the memory should be clear for unused cookies (GcDuration)
-		// for example: time.Duration(2)*time.Hour. it will check every 2 hours if cookie hasn't be used for 2 hours,
-		// deletes it from backend memory until the user comes back, then the session continue to work as it was
-		//
-		// Defaults to 2 hours
-		GcDuration time.Duration
-
 		// DisableSubdomainPersistence set it to true in order dissallow your q subdomains to have access to the session cookie
 		//
 		// Defaults to false
 		DisableSubdomainPersistence bool
-
-		// DisableAutoGC disables the auto-gc running when the session manager is created
-		// set to false to disable this behavior, you can call(onnce) manually the GC using the .GC function
-		//
-		// Defaults to false
-		DisableAutoGC bool
 	}
 )
 
@@ -125,17 +111,6 @@ func CookieLength(val int) OptionSet {
 	}
 }
 
-// GcDuration every how much duration(GcDuration) the memory should be clear for unused cookies (GcDuration)
-// for example: time.Duration(2)*time.Hour. it will check every 2 hours if cookie hasn't be used for 2 hours,
-// deletes it from backend memory until the user comes back, then the session continue to work as it was
-//
-// Defaults to 2 hours
-func GcDuration(val time.Duration) OptionSet {
-	return func(c *Config) {
-		c.GcDuration = val
-	}
-}
-
 // DisableSubdomainPersistence set it to true in order dissallow your q subdomains to have access to the session cookie
 //
 // Defaults to false
@@ -145,27 +120,17 @@ func DisableSubdomainPersistence(val bool) OptionSet {
 	}
 }
 
-// DisableAutoGC disables the auto-gc running when the session manager is created
-// set to false to disable this behavior, you can call(onnce) manually the GC using the .GC function
-//
-// Defaults to false
-func DisableAutoGC(val bool) OptionSet {
-	return func(c *Config) {
-		c.DisableAutoGC = val
-	}
-}
-
 // Validate corrects missing fields configuration fields and returns the right configuration
 func (c Config) Validate() Config {
+
 	if c.Cookie == "" {
 		c.Cookie = DefaultCookieName
 	}
-	if c.GcDuration <= 0 {
-		c.GcDuration = DefaultGcDuration
-	}
+
 	if c.Expires <= 0 {
 		c.Expires = DefaultCookieExpires
 	}
+
 	if c.DecodeCookie {
 		c.Cookie = base64.URLEncoding.EncodeToString([]byte(c.Cookie)) // change the cookie's name/key to a more safe(?)
 		// get the real value for your tests by:
@@ -175,5 +140,6 @@ func (c Config) Validate() Config {
 	if c.CookieLength <= 0 {
 		c.CookieLength = DefaultCookieLength
 	}
+
 	return c
 }

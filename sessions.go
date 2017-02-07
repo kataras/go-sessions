@@ -1,4 +1,4 @@
-// Package sessions provides sessions support for net/http
+// Package sessions provides sessions support for net/http and valyala/fasthttp
 // unique with auto-GC, register unlimited number of databases to Load and Update/Save the sessions in external server or to an external (no/or/and sql) database
 // Usage net/http:
 // // init a new sessions manager( if you use only one web framework inside your app then you can use the package-level functions like: sessions.Start/sessions.Destroy)
@@ -36,7 +36,7 @@ import (
 
 const (
 	// Version current version number
-	Version = "0.0.8"
+	Version = "0.0.9"
 )
 
 type (
@@ -50,11 +50,6 @@ type (
 		// a session db doesn't have write access
 		// see https://github.com/kataras/go-sessions/tree/master/sessiondb
 		UseDatabase(Database)
-
-		// GC tick-tock for the store cleanup, call it manually if you set the AutoStart configuration field to false.
-		// otherwise do not call it manually.
-		// it's running inside a new goroutine
-		GC()
 
 		// Start starts the session for the particular net/http request
 		Start(http.ResponseWriter, *http.Request) Session
@@ -85,14 +80,14 @@ type (
 	// sessions contains the cookie's name, the provider and a duration for GC and cookie life expire
 	sessions struct {
 		config   Config
-		provider *Provider
+		provider *provider
 	}
 )
 
 // New creates & returns a new Sessions(manager) and start its GC (calls the .Init)
 func New(setters ...OptionSetter) Sessions {
 	c := Config{}.Validate()
-	sess := &sessions{config: c, provider: NewProvider()}
+	sess := &sessions{config: c, provider: newProvider()}
 	sess.Set(setters...)
 
 	return sess
@@ -108,11 +103,6 @@ func Set(setters ...OptionSetter) {
 func (s *sessions) Set(setters ...OptionSetter) {
 	for _, setter := range setters {
 		setter.Set(&s.config)
-	}
-
-	if !s.config.DisableAutoGC {
-		// try to start the GC here
-		s.GC()
 	}
 }
 
@@ -325,36 +315,10 @@ func (s *sessions) DestroyFasthttp(reqCtx *fasthttp.RequestCtx) {
 	s.provider.Destroy(cookieValue)
 }
 
-// GC tick-tock for the store cleanup, call it manually if you set the AutoStart configuration field to false.
-// otherwise do not call it manually.
-// it's running inside a new goroutine
-func GC() {
-	defaultSessions.GC()
-}
-
-// GC tick-tock for the store cleanup, call it manually if you set the AutoStart configuration field to false.
-// otherwise do not call it manually.
-// it's running inside a new goroutine
-func (s *sessions) GC() {
-	go func() {
-
-		// check everytime if the option/config field is changed, if yes then do not continue the gc at the next tick.
-		if s.config.DisableAutoGC {
-			return
-		}
-
-		s.provider.GC(s.config.GcDuration)
-		// set a timer for the next GC
-		time.AfterFunc(s.config.GcDuration, func() {
-			s.GC()
-		})
-	}()
-}
-
 // Global generator, no logic for per-manager for now.
 
 // SessionIDGenerator returns a random string, used to set the session id
 // you are able to override this to use your own method for generate session ids
 var SessionIDGenerator = func(strLength int) string {
-	return base64.URLEncoding.EncodeToString(Random(strLength))
+	return base64.URLEncoding.EncodeToString(random(strLength))
 }

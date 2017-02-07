@@ -1,44 +1,49 @@
 package sessions
 
 import (
-	"container/list"
 	"sync"
 	"time"
 )
 
 type (
-	// Provider contains the sessions memory store and any external databases
-	Provider struct {
+	// provider contains the sessions and external databases (load and update).
+	// It's the session memory manager
+	provider struct {
+		// we don't use RWMutex because all actions have read and write at the same action function.
+		// (or write to a *session's value which is race if we don't lock)
+		// narrow locks are fasters but are useless here.
 		mu        sync.Mutex
-		sessions  map[string]*list.Element // underline TEMPORARY memory store used to give advantage on sessions used more times than others
-		list      *list.List               // for GC
+		sessions  map[string]*session
 		databases []Database
 	}
 )
 
-// NewProvider returns a new sessions provider
-func NewProvider() *Provider {
-	return &Provider{list: list.New(), sessions: make(map[string]*list.Element, 0), databases: make([]Database, 0)}
+// newProvider returns a new sessions provider
+func newProvider() *provider {
+	return &provider{
+		sessions:  make(map[string]*session, 0),
+		databases: make([]Database, 0),
+	}
 }
 
 // RegisterDatabase adds a session database
 // a session db doesn't have write access
-func (p *Provider) RegisterDatabase(db Database) {
+func (p *provider) RegisterDatabase(db Database) {
 	p.mu.Lock() // for any case
 	p.databases = append(p.databases, db)
 	p.mu.Unlock()
 }
 
-// NewSession returns a new session from sessionid
-func (p *Provider) NewSession(sid string, expires time.Duration) Session {
+// newSession returns a new session from sessionid
+func (p *provider) newSession(sid string, expires time.Duration) *session {
 
 	sess := &session{
-		sid:              sid,
-		provider:         p,
-		lastAccessedTime: time.Now(),
-		values:           p.loadSessionValues(sid),
-		flashes:          make(map[string]*flashMessage),
+		sid:      sid,
+		provider: p,
+		values:   p.loadSessionValues(sid),
+		flashes:  make(map[string]*flashMessage),
 	}
+
 	if expires > 0 { // if not unlimited life duration and no -1 (cookie remove action is based on browser's session)
 		time.AfterFunc(expires, func() {
 			// the destroy makes the check if this session is exists then or not,
@@ -49,10 +54,9 @@ func (p *Provider) NewSession(sid string, expires time.Duration) Session {
 	}
 
 	return sess
-
 }
 
-func (p *Provider) loadSessionValues(sid string) map[string]interface{} {
+func (p *provider) loadSessionValues(sid string) map[string]interface{} {
 
 	for i, n := 0, len(p.databases); i < n; i++ {
 		if dbValues := p.databases[i].Load(sid); dbValues != nil && len(dbValues) > 0 {
@@ -63,95 +67,56 @@ func (p *Provider) loadSessionValues(sid string) map[string]interface{} {
 	return values
 }
 
-func (p *Provider) updateDatabases(sid string, newValues map[string]interface{}) {
+func (p *provider) updateDatabases(sid string, newValues map[string]interface{}) {
 	for i, n := 0, len(p.databases); i < n; i++ {
 		p.databases[i].Update(sid, newValues)
 	}
 }
 
 // Init creates the session  and returns it
-func (p *Provider) Init(sid string, expires time.Duration) Session {
-	newSession := p.NewSession(sid, expires)
-	elem := p.list.PushBack(newSession)
+func (p *provider) Init(sid string, expires time.Duration) Session {
+	newSession := p.newSession(sid, expires)
 	p.mu.Lock()
-	p.sessions[sid] = elem
+	p.sessions[sid] = newSession
 	p.mu.Unlock()
 	return newSession
 }
 
 // Read returns the store which sid parameter belongs
-func (p *Provider) Read(sid string, expires time.Duration) Session {
+func (p *provider) Read(sid string, expires time.Duration) Session {
 	p.mu.Lock()
-	if elem, found := p.sessions[sid]; found {
+	if sess, found := p.sessions[sid]; found {
+		sess.runFlashGC() // run the flash messages GC, new request here of existing session
 		p.mu.Unlock()
-		sess := elem.Value.(*session)
-		sess.lastAccessedTime = time.Now()
-		// run the flash messages GC, new request here of existing session
-		sess.runFlashGC()
 		return sess
 	}
 	p.mu.Unlock()
-	// if not found create new
-	sess := p.Init(sid, expires)
-	return sess
+	return p.Init(sid, expires) // if not found create new
+
 }
 
 // Destroy destroys the session, removes all sessions and flash values,
 // the session itself and updates the registered session databases,
 // this called from sessionManager which removes the client's cookie also.
-func (p *Provider) Destroy(sid string) {
+func (p *provider) Destroy(sid string) {
 	p.mu.Lock()
-	if elem, found := p.sessions[sid]; found {
-		sess := elem.Value.(*session)
-		sess.values = nil
-		sess.flashes = nil
-		p.updateDatabases(sid, nil)
-		delete(p.sessions, sid)
-		p.list.Remove(elem)
+	if sess, found := p.sessions[sid]; found {
+		delete(p.sessions, sess.ID())
+		p.updateDatabases(sess.ID(), nil)
 	}
 	p.mu.Unlock()
+
 }
 
 // DestroyAll removes all sessions
 // from the server-side memory (and database if registered).
 // Client's session cookie will still exist but it will be reseted on the next request.
-func (p *Provider) DestroyAll() {
-	for sid := range p.sessions {
-		p.Destroy(sid)
-	}
-}
-
-// Update updates the lastAccessedTime, and moves the memory place element to the front
-// always returns a nil error, for now
-func (p *Provider) update(sid string) {
+func (p *provider) DestroyAll() {
 	p.mu.Lock()
-	if elem, found := p.sessions[sid]; found {
-		sess := elem.Value.(*session)
-		sess.lastAccessedTime = time.Now()
-		p.list.MoveToFront(elem)
-		p.updateDatabases(sid, sess.values)
+	for _, sess := range p.sessions {
+		delete(p.sessions, sess.ID())
+		p.updateDatabases(sess.ID(), nil)
 	}
 	p.mu.Unlock()
-}
 
-// GC clears the memory
-func (p *Provider) GC(duration time.Duration) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	for {
-		elem := p.list.Back()
-		if elem == nil {
-			break
-		}
-
-		// if the time has passed. session was expired, then delete the session and its memory place
-		// we are not destroy the session completely for the case this is re-used after
-		sess := elem.Value.(*session)
-		if time.Now().After(sess.lastAccessedTime.Add(duration)) {
-			p.list.Remove(elem)
-		} else {
-			break
-		}
-	}
 }

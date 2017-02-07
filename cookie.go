@@ -117,7 +117,7 @@ func RemoveFasthttpCookie(name string, reqCtx *fasthttp.RequestCtx) {
 	cookie.SetExpire(exp)
 	AddFasthttpCookie(cookie, reqCtx)
 	fasthttp.ReleaseCookie(cookie)
-	// delete request's cookie also, which is temporarly available
+	// delete request's cookie also, which is temporary available
 	reqCtx.Request.Header.DelCookie(name)
 }
 
@@ -176,12 +176,13 @@ const (
 	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
 )
 
-var src = rand.NewSource(time.Now().UnixNano())
-
-// Random takes a parameter (int) and returns random slice of byte
+// random takes a parameter (int) and returns random slice of byte
 // ex: var randomstrbytes []byte; randomstrbytes =  Random(32)
 // note: this code doesn't belongs to me, but it works just fine*
-func Random(n int) []byte {
+//
+// Used for the default SessionIDGenerator which you can change.
+func random(n int) []byte {
+	src := rand.NewSource(time.Now().UnixNano())
 	b := make([]byte, n)
 	// A src.Int63() generates 63 random bits, enough for letterIdxMax characters!
 	for i, cache, remain := n-1, src.Int63(), letterIdxMax; i >= 0; {
@@ -199,9 +200,9 @@ func Random(n int) []byte {
 	return b
 }
 
-// RandomString accepts a number(10 for example) and returns a random string using simple but fairly safe random algorithm
-func RandomString(n int) string {
-	return string(Random(n))
+// randomString accepts a number(10 for example) and returns a random string using simple but fairly safe random algorithm
+func randomString(n int) string {
+	return string(random(n))
 }
 
 // Serialize serialize any type to gob bytes and after returns its the base64 encoded string

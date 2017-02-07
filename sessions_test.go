@@ -57,8 +57,8 @@ func writeValues(res http.ResponseWriter, values map[string]interface{}) error {
 }
 
 func TestSessionsNetHTTP(t *testing.T) {
-	t.Parallel()
-
+	// enable parallel with net/http session values vs fasthttp session values when fasthttp tests too
+	// t.Parallel()
 	mux := http.NewServeMux()
 	values := map[string]interface{}{
 		"Name":   "go-sessions",
@@ -146,7 +146,8 @@ func TestSessionsNetHTTP(t *testing.T) {
 }
 
 func TestFlashMessages(t *testing.T) {
-	t.Parallel()
+	// enable parallel with net/http session values vs fasthttp session values when fasthttp tests too
+	// t.Parallel()
 	mux := http.NewServeMux()
 
 	valueSingleKey := "Name"

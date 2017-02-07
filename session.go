@@ -46,11 +46,10 @@ type (
 		// but without temp values (flash messages) which are removed after fetching.
 		// so introduce a new field here.
 		// NOTE: flashes are not managed by third-party, only inside session struct.
-		flashes          map[string]*flashMessage
-		mu               sync.Mutex
-		lastAccessedTime time.Time
-		createdAt        time.Time
-		provider         *Provider
+		flashes   map[string]*flashMessage
+		mu        sync.RWMutex
+		createdAt time.Time
+		provider  *provider
 	}
 
 	flashMessage struct {
@@ -67,25 +66,22 @@ func (s *session) ID() string {
 
 // Get returns the value of an entry by its key
 func (s *session) Get(key string) interface{} {
-	s.provider.update(s.sid)
+	s.mu.RLock()
+	value := s.values[key]
+	s.mu.RUnlock()
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if value, found := s.values[key]; found {
-		return value
-	}
-	return nil
+	return value
 }
 
 // when running on the session manager removes any 'old' flash messages
 func (s *session) runFlashGC() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	for key, v := range s.flashes {
 		if v.shouldRemove {
 			delete(s.flashes, key)
 		}
 	}
+	s.mu.Unlock()
 }
 
 // HasFlash returns true if this request has available flash messages
@@ -101,14 +97,15 @@ func (s *session) HasFlash() bool {
 //
 // Fetching a message deletes it from the session.
 // This means that a message is meant to be displayed only on the first page served to the user
-func (s *session) GetFlash(key string) interface{} {
+func (s *session) GetFlash(key string) (v interface{}) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	if value, found := s.flashes[key]; found {
-		value.shouldRemove = true
-		return value.value
+	if valueStorage, found := s.flashes[key]; found {
+		valueStorage.shouldRemove = true
+		v = valueStorage.value
 	}
-	return nil
+	s.mu.Unlock()
+
+	return
 }
 
 // GetString same as Get but returns as string, if nil then returns an empty string
@@ -211,19 +208,27 @@ func (s *session) GetBoolean(key string) (bool, error) {
 	return false, errFindParse.Format("bool", key, v)
 }
 
-// GetAll returns all session's values
+// GetAll returns a copy of all session's values
 func (s *session) GetAll() map[string]interface{} {
-	return s.values
+	items := make(map[string]interface{}, len(s.values))
+	s.mu.RLock()
+	for key, v := range s.values {
+		items[key] = v
+	}
+	s.mu.RUnlock()
+	return items
 }
 
 // GetFlashes returns all flash messages as map[string](key) and interface{} value
 // NOTE: this will cause at remove all current flash messages on the next request of the same user
 func (s *session) GetFlashes() map[string]interface{} {
 	flashes := make(map[string]interface{}, len(s.flashes))
+	s.mu.Lock()
 	for key, v := range s.flashes {
 		flashes[key] = v.value
 		v.shouldRemove = true
 	}
+	s.mu.Unlock()
 	return flashes
 }
 
@@ -240,7 +245,8 @@ func (s *session) Set(key string, value interface{}) {
 	s.mu.Lock()
 	s.values[key] = value
 	s.mu.Unlock()
-	s.provider.update(s.sid)
+
+	s.updateDatabases()
 }
 
 // SetFlash sets a flash message by its key.
@@ -274,7 +280,12 @@ func (s *session) Delete(key string) {
 	s.mu.Lock()
 	delete(s.values, key)
 	s.mu.Unlock()
-	s.provider.update(s.sid)
+
+	s.updateDatabases()
+}
+
+func (s *session) updateDatabases() {
+	s.provider.updateDatabases(s.sid, s.values)
 }
 
 // DeleteFlash removes a flash message by its key
@@ -291,7 +302,8 @@ func (s *session) Clear() {
 		delete(s.values, key)
 	}
 	s.mu.Unlock()
-	s.provider.update(s.sid)
+
+	s.updateDatabases()
 }
 
 // Clear removes all flash messages
