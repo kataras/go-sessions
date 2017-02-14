@@ -9,9 +9,9 @@ import (
 
 var (
 	// ErrRedisClosed an error with message 'Redis is already closed'
-	ErrRedisClosed = errors.New("Redis is already closed")
+	ErrRedisClosed = errors.New("redis is already closed")
 	// ErrKeyNotFound an error with message 'Key $thekey doesn't found'
-	ErrKeyNotFound = errors.New("Key '%s' doesn't found")
+	ErrKeyNotFound = errors.New("key '%s' doesn't found")
 )
 
 // Service the Redis service, contains the config and the redis pool
