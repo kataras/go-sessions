@@ -36,7 +36,7 @@ import (
 
 const (
 	// Version current version number
-	Version = "0.0.9"
+	Version = "1.0.0"
 )
 
 type (
@@ -169,12 +169,22 @@ func (s *sessions) Start(res http.ResponseWriter, req *http.Request) Session {
 
 		}
 		cookie.HttpOnly = true
-		if s.config.Expires == 0 {
-			// unlimited life
-			cookie.Expires = CookieExpireUnlimited
-		} else if s.config.Expires > 0 {
-			cookie.Expires = time.Now().Add(s.config.Expires)
-		} // if it's -1 then the cookie is deleted when the browser closes
+
+		// MaxAge=0 means no 'Max-Age' attribute specified.
+		// MaxAge<0 means delete cookie now, equivalently 'Max-Age: 0'
+		// MaxAge>0 means Max-Age attribute present and given in seconds
+		if s.config.Expires >= 0 {
+			if s.config.Expires == 0 { // unlimited life
+				cookie.Expires = CookieExpireUnlimited
+			} else { // > 0
+				cookie.Expires = time.Now().Add(s.config.Expires)
+			}
+			cookie.MaxAge = int(cookie.Expires.Sub(time.Now()).Seconds())
+		} else {
+			// if it's -1 then the cookie is deleted when the browser closes
+			// so MaxAge = -1
+			cookie.MaxAge = -1
+		}
 
 		AddCookie(cookie, res)
 	} else {

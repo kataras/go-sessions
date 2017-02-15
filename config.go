@@ -8,23 +8,17 @@ import (
 const (
 	// DefaultCookieName the secret cookie's name for sessions
 	DefaultCookieName = "gosessionsid"
-	// DefaultGcDuration  is the default Session Manager's GCDuration , which is 2 hours
-	DefaultGcDuration = time.Duration(2) * time.Hour
-	// DefaultCookieExpires  is the default Session Manager's Cookie expire , which is 2 hours
-	DefaultCookieExpires = DefaultGcDuration
 	// DefaultCookieLength is the default Session Manager's CookieLength, which is 32
 	DefaultCookieLength = 32
 )
 
 // Config the configuration for sessions
-// has 6 fields
+// has 5 fields
 // first is the cookieName, the session's name (string) ["mysessionsecretcookieid"]
 // second enable if you want to decode the cookie's key also
 // third is the time which the client's cookie expires
 // forth is the cookie length (sessionid) int, defaults to 32, do not change if you don't have any reason to do
 // fifth is the DisableSubdomainPersistence which you can set it to true in order dissallow your q subdomains to have access to the session cook
-// sixth is the AutoStart which defaults to true, disable it in order to disable the autostart- GC when the session manager is created
-//
 type (
 	// OptionSetter used as the type of return of a func which sets a configuration field's value
 	OptionSetter interface {
@@ -47,6 +41,10 @@ type (
 
 		// Expires the duration of which the cookie must expires (created_time.Add(Expires)).
 		// If you want to delete the cookie when the browser closes, set it to -1 but in this case, the server side's session duration is up to GcDuration
+		//
+		// 0 means no expire, (24 years)
+		// -1 means when browser closes
+		// > 0 is the time.Duration which the session cookies should expire.
 		//
 		// Defaults to infinitive/unlimited life duration(0)
 		Expires time.Duration
@@ -125,10 +123,6 @@ func (c Config) Validate() Config {
 
 	if c.Cookie == "" {
 		c.Cookie = DefaultCookieName
-	}
-
-	if c.Expires <= 0 {
-		c.Expires = DefaultCookieExpires
 	}
 
 	if c.DecodeCookie {

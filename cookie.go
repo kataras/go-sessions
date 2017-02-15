@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/valyala/fasthttp"
@@ -19,7 +18,7 @@ var (
 	CookieExpireDelete = time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
 
 	// CookieExpireUnlimited indicates that the cookie doesn't expire.
-	CookieExpireUnlimited = time.Now().AddDate(23, 0, 0)
+	CookieExpireUnlimited = time.Now().AddDate(24, 10, 10)
 )
 
 // GetCookie returns cookie's value by it's name
@@ -51,39 +50,6 @@ func RemoveCookie(name string, res http.ResponseWriter, req *http.Request) {
 	c.Value = ""
 	c.Path = "/"
 	AddCookie(c, res)
-}
-
-var cookiePool sync.Pool
-
-// AcquireCookie returns an empty Cookie object from the pool.
-//
-// The returned object may be returned back to the pool with ReleaseCookie.
-// This allows reducing GC load.
-func AcquireCookie() *http.Cookie {
-	v := cookiePool.Get()
-	if v == nil {
-		return &http.Cookie{}
-	}
-
-	cookie := v.(*http.Cookie)
-	cookie.HttpOnly = true
-	cookie.Path = ""
-	cookie.HttpOnly = false
-	cookie.Name = ""
-	cookie.Raw = ""
-	cookie.Value = ""
-	cookie.Domain = ""
-	cookie.MaxAge = -1
-	cookie.Expires = CookieExpireUnlimited
-	return cookie
-}
-
-// ReleaseCookie returns the Cookie object acquired with AcquireCookie back
-// to the pool.
-//
-// Do not access released Cookie object, otherwise data races may occur.
-func ReleaseCookie(cookie *http.Cookie) {
-	cookiePool.Put(cookie)
 }
 
 // FastHTTP
