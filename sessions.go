@@ -36,7 +36,7 @@ import (
 
 const (
 	// Version current version number
-	Version = "1.0.0"
+	Version = "1.0.1"
 )
 
 type (
@@ -181,9 +181,12 @@ func (s *sessions) Start(res http.ResponseWriter, req *http.Request) Session {
 			}
 			cookie.MaxAge = int(cookie.Expires.Sub(time.Now()).Seconds())
 		}
-
+		// encode the session id cookie client value right before send it.
+		cookie.Value = s.encodeCookieValue(cookie.Value)
 		AddCookie(cookie, res)
 	} else {
+		cookieValue = s.decodeCookieValue(cookieValue)
+
 		sess = s.provider.Read(cookieValue, s.config.Expires)
 	}
 	return sess
@@ -197,6 +200,9 @@ func Destroy(res http.ResponseWriter, req *http.Request) {
 // Destroy kills the net/http session and remove the associated cookie
 func (s *sessions) Destroy(res http.ResponseWriter, req *http.Request) {
 	cookieValue := GetCookie(s.config.Cookie, req)
+	// decode the client's cookie value in order to find the server's session id
+	// to destroy the session data.
+	cookieValue = s.decodeCookieValue(cookieValue)
 	if cookieValue == "" { // nothing to destroy
 		return
 	}
@@ -209,6 +215,9 @@ func (s *sessions) Destroy(res http.ResponseWriter, req *http.Request) {
 // Client's session cookie will still exist but it will be reseted on the next request.
 //
 // It's safe to use it even if you are not sure if a session with that id exists.
+//
+// Note: sid is the original session id (may fetched by a store).
+//
 // Works for both net/http & fasthttp
 func DestroyByID(sid string) {
 	defaultSessions.DestroyByID(sid)
@@ -219,6 +228,9 @@ func DestroyByID(sid string) {
 // Client's session cookie will still exist but it will be reseted on the next request.
 //
 // It's safe to use it even if you are not sure if a session with that id exists.
+//
+// Note: sid is the original session id (may fetched by a store).
+//
 // Works for both net/http & fasthttp
 func (s *sessions) DestroyByID(sid string) {
 	s.provider.Destroy(sid)
@@ -297,9 +309,13 @@ func (s *sessions) StartFasthttp(reqCtx *fasthttp.RequestCtx) Session {
 			cookie.SetExpire(time.Now().Add(s.config.Expires))
 		} // if it's -1 then the cookie is deleted when the browser closes
 
+		// encode the session id cookie client value right before send it.
+		cookie.SetValue(s.encodeCookieValue(string(cookie.Value())))
 		AddFasthttpCookie(cookie, reqCtx)
 		fasthttp.ReleaseCookie(cookie)
 	} else {
+		cookieValue = s.decodeCookieValue(cookieValue)
+
 		sess = s.provider.Read(cookieValue, s.config.Expires)
 	}
 	return sess
@@ -313,6 +329,9 @@ func DestroyFasthttp(reqCtx *fasthttp.RequestCtx) {
 // DestroyFasthttp kills the valyala/fasthttp session and remove the associated cookie
 func (s *sessions) DestroyFasthttp(reqCtx *fasthttp.RequestCtx) {
 	cookieValue := GetFasthttpCookie(s.config.Cookie, reqCtx)
+	// decode the client's cookie value in order to find the server's session id
+	// to destroy the session data.
+	cookieValue = s.decodeCookieValue(cookieValue)
 	if cookieValue == "" { // nothing to destroy
 		return
 	}
@@ -326,4 +345,31 @@ func (s *sessions) DestroyFasthttp(reqCtx *fasthttp.RequestCtx) {
 // you are able to override this to use your own method for generate session ids
 var SessionIDGenerator = func(strLength int) string {
 	return base64.URLEncoding.EncodeToString(random(strLength))
+}
+
+// let's keep these funcs simple, we can do it with two lines but we may add more things in the future.
+func (s *sessions) decodeCookieValue(cookieValue string) string {
+	var cookieValueDecoded *string
+	if decode := s.config.Decode; decode != nil {
+		err := decode(s.config.Cookie, cookieValue, &cookieValueDecoded)
+		if err == nil {
+			cookieValue = *cookieValueDecoded
+		} else {
+			cookieValue = ""
+		}
+	}
+	return cookieValue
+}
+
+func (s *sessions) encodeCookieValue(cookieValue string) string {
+	if encode := s.config.Encode; encode != nil {
+		newVal, err := encode(s.config.Cookie, cookieValue)
+		if err == nil {
+			cookieValue = newVal
+		} else {
+			cookieValue = ""
+		}
+	}
+
+	return cookieValue
 }

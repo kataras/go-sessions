@@ -1,18 +1,16 @@
-// +build ignore
-
 package main
 
 import (
 	"fmt"
-	"github.com/kataras/go-sessions"
 	"net/http"
 	"time"
+
+	"github.com/kataras/go-sessions"
 )
 
 var mySessionsConfig = sessions.Config{Cookie: "mysessioncookieid",
-	DecodeCookie:                false,
+	// see sessions_test.go on how to set encoder and decoder for cookie value(sessionid)
 	Expires:                     time.Duration(2) * time.Hour,
-	GcDuration:                  time.Duration(2) * time.Hour,
 	DisableSubdomainPersistence: false,
 }
 

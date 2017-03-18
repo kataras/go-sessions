@@ -1,5 +1,3 @@
-// +build ignore
-
 package main
 
 import (
@@ -16,9 +14,7 @@ import (
 )
 
 var mySessionsConfig = sessions.Config{Cookie: "mysessioncookieid",
-	DecodeCookie:                false,
 	Expires:                     time.Duration(2) * time.Hour,
-	GcDuration:                  time.Duration(2) * time.Hour,
 	DisableSubdomainPersistence: false,
 }
 

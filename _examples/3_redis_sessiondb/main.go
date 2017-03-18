@@ -1,20 +1,17 @@
-// +build ignore
-
 package main
 
 import (
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/kataras/go-sessions"
 	"github.com/kataras/go-sessions/sessiondb/redis"
 	"github.com/kataras/go-sessions/sessiondb/redis/service"
-	"net/http"
-	"time"
 )
 
 var mySessionsConfig = sessions.Config{Cookie: "mysessioncookieid",
-	DecodeCookie:                false,
 	Expires:                     time.Duration(2) * time.Hour,
-	GcDuration:                  time.Duration(2) * time.Hour,
 	DisableSubdomainPersistence: false,
 }
 

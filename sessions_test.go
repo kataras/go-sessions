@@ -7,6 +7,9 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	// developers can use any library to add a custom cookie encoder/decoder.
+	// At this test code we use the gorilla's securecookie library:
+	"github.com/gorilla/securecookie"
 
 	"github.com/gavv/httpexpect"
 	"github.com/kataras/go-errors"
@@ -57,6 +60,23 @@ func writeValues(res http.ResponseWriter, values map[string]interface{}) error {
 }
 
 func TestSessionsNetHTTP(t *testing.T) {
+	testSessionsNetHTTP(t)
+}
+
+func TestSessionsEncodeDecodeNetHTTP(t *testing.T) {
+	// AES only supports key sizes of 16, 24 or 32 bytes.
+	// You either need to provide exactly that amount or you derive the key from what you type in.
+	hashKey := []byte("the-big-and-secret-fash-key-here")
+	blockKey := []byte("lot-secret-of-characters-big-too")
+	secureCookie := securecookie.New(hashKey, blockKey)
+	// set the encode/decode funcs and run the test
+	Set(Encode(secureCookie.Encode))
+	Set(Decode(secureCookie.Decode))
+
+	testSessionsNetHTTP(t)
+}
+
+func testSessionsNetHTTP(t *testing.T) {
 	// enable parallel with net/http session values vs fasthttp session values when fasthttp tests too
 	// t.Parallel()
 	mux := http.NewServeMux()

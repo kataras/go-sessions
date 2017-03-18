@@ -1,9 +1,8 @@
-// +build ignore
-
 package main
 
 import (
 	"fmt"
+
 	"github.com/kataras/go-sessions"
 	"github.com/valyala/fasthttp"
 )
