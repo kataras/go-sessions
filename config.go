@@ -1,6 +1,7 @@
 package sessions
 
 import (
+	"encoding/base64"
 	"time"
 )
 
@@ -32,7 +33,12 @@ type (
 		//
 		// Defaults to "gosessionid"
 		Cookie string
-
+		// DecodeCookie if setted to true then the cookie's name will be url-encoded.
+		// Note: Users should not confuse the 'Encode' and 'Decode' configuration fields,
+		// these are for the cookie's value, which is the session id.
+		//
+		// Defaults to false
+		DecodeCookie bool
 		// Encode the cookie value if not nil.
 		// Should accept as first argument the cookie name (config.Name)
 		//         as second argument the server's generated session id.
@@ -95,6 +101,17 @@ func (o OptionSet) Set(c *Config) {
 func Cookie(val string) OptionSet {
 	return func(c *Config) {
 		c.Cookie = val
+	}
+}
+
+// DecodeCookie if setted to true then the cookie's name will be url-encoded.
+// Note: Users should not confuse the 'Encode' and 'Decode' configuration fields,
+// these are for the cookie's value, which is the session id.
+//
+// Defaults to false
+func DecodeCookie(val bool) OptionSet {
+	return func(c *Config) {
+		c.DecodeCookie = val
 	}
 }
 
@@ -163,6 +180,14 @@ func (c Config) Validate() Config {
 
 	if c.Cookie == "" {
 		c.Cookie = DefaultCookieName
+	}
+
+	if c.DecodeCookie {
+		// just the cookie name
+		// use 'Encode' and 'Decode' for the session id "safety".
+		c.Cookie = base64.URLEncoding.EncodeToString([]byte(c.Cookie))
+		// get the real value for your tests by:
+		//sessIdKey := url.QueryEscape(base64.URLEncoding.EncodeToString([]byte(Sessions.Cookie)))
 	}
 
 	if c.CookieLength <= 0 {

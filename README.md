@@ -5,7 +5,7 @@
 
  <a href="https://travis-ci.org/kataras/go-sessions"><img src="https://img.shields.io/travis/kataras/go-sessions.svg?style=flat-square" alt="Build Status"></a>
  <a href="https://github.com/kataras/go-sessions/blob/master/LICENSE"><img src="https://img.shields.io/badge/%20license-MIT%20%20License%20-E91E63.svg?style=flat-square" alt="License"></a>
- <a href="https://github.com/kataras/go-sessions/releases"><img src="https://img.shields.io/badge/%20release%20-%20v1.0.0-blue.svg?style=flat-square" alt="Releases"></a>
+ <a href="https://github.com/kataras/go-sessions/releases"><img src="https://img.shields.io/badge/%20release%20-%20v1.0.2-blue.svg?style=flat-square" alt="Releases"></a>
  <a href="#docs"><img src="https://img.shields.io/badge/%20docs-reference-5272B4.svg?style=flat-square" alt="Read me docs"></a>
  <br/>
  <a href="https://kataras.rocket.chat/channel/go-sessions"><img src="https://img.shields.io/badge/%20community-chat-00BCD4.svg?style=flat-square" alt="Build Status"></a>
@@ -116,7 +116,12 @@ UpdateConfig(Config)
 		//
 		// Defaults to "gosessionid"
 		Cookie string
-
+		// DecodeCookie if setted to true then the cookie's name will be url-encoded.
+		// Note: Users should not confuse the 'Encode' and 'Decode' configuration fields,
+		// these are for the cookie's value, which is the session id.
+		//
+		// Defaults to false
+		DecodeCookie bool
 		// Encode the cookie value if not nil.
 		// Should accept as first argument the cookie name (config.Name)
 		//         as second argument the server's generated session id.
@@ -362,7 +367,7 @@ If you'd like to discuss this package, or ask questions about it, feel free to
 Versioning
 ------------
 
-Current: **v1.0.0**
+Current: **v1.0.2**
 
 Read more about Semantic Versioning 2.0.0
 
@@ -392,7 +397,7 @@ License can be found [here](LICENSE).
 [Travis]: http://travis-ci.org/kataras/go-sessions
 [License Widget]: https://img.shields.io/badge/license-MIT%20%20License%20-E91E63.svg?style=flat-square
 [License]: https://github.com/kataras/go-sessions/blob/master/LICENSE
-[Release Widget]: https://img.shields.io/badge/release-v1.0.0-blue.svg?style=flat-square
+[Release Widget]: https://img.shields.io/badge/release-v1.0.2-blue.svg?style=flat-square
 [Release]: https://github.com/kataras/go-sessions/releases
 [Chat Widget]: https://img.shields.io/badge/community-chat-00BCD4.svg?style=flat-square
 [Chat]: https://kataras.rocket.chat/channel/go-sessions
