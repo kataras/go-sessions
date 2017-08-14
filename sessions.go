@@ -26,7 +26,6 @@
 package sessions
 
 import (
-	"encoding/base64"
 	"net/http"
 	"strings"
 	"time"
@@ -35,192 +34,313 @@ import (
 )
 
 const (
-	// Version current version number
-	Version = "1.0.2"
+	// Version current semantic version string of the go-sessions package.
+	Version = "2.0.0"
 )
 
-type (
-	// Sessions is the start point of this package
-	// contains all the registered sessions and manages them
-	Sessions interface {
-		// Set options/configuration fields in runtime
-		Set(...OptionSetter)
-
-		// UseDatabase ,optionally, adds a session database to the manager's provider,
-		// a session db doesn't have write access
-		// see https://github.com/kataras/go-sessions/tree/master/sessiondb
-		UseDatabase(Database)
-
-		// Start starts the session for the particular net/http request
-		Start(http.ResponseWriter, *http.Request) Session
-
-		// Destroy kills the net/http session and remove the associated cookie
-		Destroy(http.ResponseWriter, *http.Request)
-
-		// StartFasthttp starts the session for the particular valyala/fasthttp request
-		StartFasthttp(*fasthttp.RequestCtx) Session
-
-		// DestroyFasthttp kills the valyala/fasthttp session and remove the associated cookie
-		DestroyFasthttp(*fasthttp.RequestCtx)
-
-		// DestroyByID removes the session entry
-		// from the server-side memory (and database if registered).
-		// Client's session cookie will still exist but it will be reseted on the next request.
-		//
-		// It's safe to use it even if you are not sure if a session with that id exists.
-		// Works for both net/http & fasthttp
-		DestroyByID(string)
-		// DestroyAll removes all sessions
-		// from the server-side memory (and database if registered).
-		// Client's session cookie will still exist but it will be reseted on the next request.
-		// Works for both net/http & fasthttp
-		DestroyAll()
-	}
-
-	// sessions contains the cookie's name, the provider and a duration for GC and cookie life expire
-	sessions struct {
-		config   Config
-		provider *provider
-	}
-)
-
-// New creates & returns a new Sessions(manager) and start its GC (calls the .Init)
-func New(setters ...OptionSetter) Sessions {
-	c := Config{}.Validate()
-	sess := &sessions{config: c, provider: newProvider()}
-	sess.Set(setters...)
-
-	return sess
+// A Sessions manager should be responsible to Start a sesion, based
+// on a Context, which should return
+// a compatible Session interface, type. If the external session manager
+// doesn't qualifies, then the user should code the rest of the functions with empty implementation.
+//
+// Sessions should be responsible to Destroy a session based
+// on the Context.
+type Sessions struct {
+	config   Config
+	provider *provider
 }
 
-var defaultSessions = New(Config{}.Validate())
+// Default instance of the sessions, used for package-level functions.
+var Default = New(Config{}.Validate())
 
-// Set options/configuration fields in runtime
-func Set(setters ...OptionSetter) {
-	defaultSessions.Set(setters...)
-}
-
-func (s *sessions) Set(setters ...OptionSetter) {
-	for _, setter := range setters {
-		setter.Set(&s.config)
+// New returns the fast, feature-rich sessions manager.
+func New(cfg Config) *Sessions {
+	return &Sessions{
+		config:   cfg.Validate(),
+		provider: newProvider(),
 	}
 }
 
-// UseDatabase adds a session database to the manager's provider,
-// a session db doesn't have write access
+// UseDatabase adds a session database to the manager's provider.
 func UseDatabase(db Database) {
-	defaultSessions.UseDatabase(db)
+	Default.UseDatabase(db)
 }
 
-// UseDatabase adds a session database to the manager's provider,
-// a session db doesn't have write access
-func (s *sessions) UseDatabase(db Database) {
+// UseDatabase adds a session database to the manager's provider.
+func (s *Sessions) UseDatabase(db Database) {
 	s.provider.RegisterDatabase(db)
 }
 
-// Start starts the session for the particular net/http request
-func Start(res http.ResponseWriter, req *http.Request) Session {
-	return defaultSessions.Start(res, req)
+// updateCookie gains the ability of updating the session browser cookie to any method which wants to update it
+func (s *Sessions) updateCookie(w http.ResponseWriter, r *http.Request, sid string, expires time.Duration) {
+	cookie := &http.Cookie{}
+
+	// The RFC makes no mention of encoding url value, so here I think to encode both sessionid key and the value using the safe(to put and to use as cookie) url-encoding
+	cookie.Name = s.config.Cookie
+
+	cookie.Value = sid
+	cookie.Path = "/"
+	if !s.config.DisableSubdomainPersistence {
+
+		requestDomain := r.URL.Host
+		if portIdx := strings.IndexByte(requestDomain, ':'); portIdx > 0 {
+			requestDomain = requestDomain[0:portIdx]
+		}
+		if IsValidCookieDomain(requestDomain) {
+
+			// RFC2109, we allow level 1 subdomains, but no further
+			// if we have localhost.com , we want the localhost.cos.
+			// so if we have something like: mysubdomain.localhost.com we want the localhost here
+			// if we have mysubsubdomain.mysubdomain.localhost.com we want the .mysubdomain.localhost.com here
+			// slow things here, especially the 'replace' but this is a good and understable( I hope) way to get the be able to set cookies from subdomains & domain with 1-level limit
+			if dotIdx := strings.LastIndexByte(requestDomain, '.'); dotIdx > 0 {
+				// is mysubdomain.localhost.com || mysubsubdomain.mysubdomain.localhost.com
+				s := requestDomain[0:dotIdx] // set mysubdomain.localhost || mysubsubdomain.mysubdomain.localhost
+				if secondDotIdx := strings.LastIndexByte(s, '.'); secondDotIdx > 0 {
+					//is mysubdomain.localhost ||  mysubsubdomain.mysubdomain.localhost
+					s = s[secondDotIdx+1:] // set to localhost || mysubdomain.localhost
+				}
+				// replace the s with the requestDomain before the domain's siffux
+				subdomainSuff := strings.LastIndexByte(requestDomain, '.')
+				if subdomainSuff > len(s) { // if it is actual exists as subdomain suffix
+					requestDomain = strings.Replace(requestDomain, requestDomain[0:subdomainSuff], s, 1) // set to localhost.com || mysubdomain.localhost.com
+				}
+			}
+			// finally set the .localhost.com (for(1-level) || .mysubdomain.localhost.com (for 2-level subdomain allow)
+			cookie.Domain = "." + requestDomain // . to allow persistence
+		}
+	}
+
+	cookie.HttpOnly = true
+	// MaxAge=0 means no 'Max-Age' attribute specified.
+	// MaxAge<0 means delete cookie now, equivalently 'Max-Age: 0'
+	// MaxAge>0 means Max-Age attribute present and given in seconds
+	if expires >= 0 {
+		if expires == 0 { // unlimited life
+			cookie.Expires = CookieExpireUnlimited
+		} else { // > 0
+			cookie.Expires = time.Now().Add(expires)
+		}
+		cookie.MaxAge = int(cookie.Expires.Sub(time.Now()).Seconds())
+	}
+
+	// set the cookie to secure if this is a tls wrapped request
+	// and the configuration allows it.
+	if r.TLS != nil && s.config.CookieSecureTLS {
+		cookie.Secure = true
+	}
+
+	// encode the session id cookie client value right before send it.
+	cookie.Value = s.encodeCookieValue(cookie.Value)
+	AddCookie(w, cookie)
 }
 
-// Start starts the session for the particular net/http request
-func (s *sessions) Start(res http.ResponseWriter, req *http.Request) Session {
-	var sess Session
+// Start starts the session for the particular request.
+func Start(w http.ResponseWriter, r *http.Request) *Session {
+	return Default.Start(w, r)
+}
 
-	cookieValue := GetCookie(s.config.Cookie, req)
+// Start starts the session for the particular request.
+func (s *Sessions) Start(w http.ResponseWriter, r *http.Request) *Session {
+	cookieValue := s.decodeCookieValue(GetCookie(r, s.config.Cookie))
+
 	if cookieValue == "" { // cookie doesn't exists, let's generate a session and add set a cookie
-		sid := SessionIDGenerator(s.config.CookieLength)
-		sess = s.provider.Init(sid, s.config.Expires)
-		cookie := &http.Cookie{}
+		sid := s.config.SessionIDGenerator()
 
-		// The RFC makes no mention of encoding url value, so here I think to encode both sessionid key and the value using the safe(to put and to use as cookie) url-encoding
-		cookie.Name = s.config.Cookie
-		cookie.Value = sid
-		cookie.Path = "/"
-		if !s.config.DisableSubdomainPersistence {
+		sess := s.provider.Init(sid, s.config.Expires)
+		sess.isNew = sess.values.Len() == 0
 
-			requestDomain := req.URL.Host
-			if portIdx := strings.IndexByte(requestDomain, ':'); portIdx > 0 {
-				requestDomain = requestDomain[0:portIdx]
-			}
-			if IsValidCookieDomain(requestDomain) {
+		s.updateCookie(w, r, sid, s.config.Expires)
 
-				// RFC2109, we allow level 1 subdomains, but no further
-				// if we have localhost.com , we want the localhost.cos.
-				// so if we have something like: mysubdomain.localhost.com we want the localhost here
-				// if we have mysubsubdomain.mysubdomain.localhost.com we want the .mysubdomain.localhost.com here
-				// slow things here, especially the 'replace' but this is a good and understable( I hope) way to get the be able to set cookies from subdomains & domain with 1-level limit
-				if dotIdx := strings.LastIndexByte(requestDomain, '.'); dotIdx > 0 {
-					// is mysubdomain.localhost.com || mysubsubdomain.mysubdomain.localhost.com
-					s := requestDomain[0:dotIdx] // set mysubdomain.localhost || mysubsubdomain.mysubdomain.localhost
-					if secondDotIdx := strings.LastIndexByte(s, '.'); secondDotIdx > 0 {
-						//is mysubdomain.localhost ||  mysubsubdomain.mysubdomain.localhost
-						s = s[secondDotIdx+1:] // set to localhost || mysubdomain.localhost
-					}
-					// replace the s with the requestDomain before the domain's siffux
-					subdomainSuff := strings.LastIndexByte(requestDomain, '.')
-					if subdomainSuff > len(s) { // if it is actual exists as subdomain suffix
-						requestDomain = strings.Replace(requestDomain, requestDomain[0:subdomainSuff], s, 1) // set to localhost.com || mysubdomain.localhost.com
-					}
-				}
-				// finally set the .localhost.com (for(1-level) || .mysubdomain.localhost.com (for 2-level subdomain allow)
-				cookie.Domain = "." + requestDomain // . to allow persistance
-			}
-
-		}
-		cookie.HttpOnly = true
-
-		// MaxAge=0 means no 'Max-Age' attribute specified.
-		// MaxAge<0 means delete cookie now, equivalently 'Max-Age: 0'
-		// MaxAge>0 means Max-Age attribute present and given in seconds
-		if s.config.Expires >= 0 {
-			if s.config.Expires == 0 { // unlimited life
-				cookie.Expires = CookieExpireUnlimited
-			} else { // > 0
-				cookie.Expires = time.Now().Add(s.config.Expires)
-			}
-			cookie.MaxAge = int(cookie.Expires.Sub(time.Now()).Seconds())
-		}
-		// encode the session id cookie client value right before send it.
-		cookie.Value = s.encodeCookieValue(cookie.Value)
-		AddCookie(cookie, res)
-	} else {
-		cookieValue = s.decodeCookieValue(cookieValue)
-
-		sess = s.provider.Read(cookieValue, s.config.Expires)
+		return sess
 	}
+
+	sess := s.provider.Read(cookieValue, s.config.Expires)
+
 	return sess
 }
 
-// Destroy kills the net/http session and remove the associated cookie
-func Destroy(res http.ResponseWriter, req *http.Request) {
-	defaultSessions.Destroy(res, req)
+func (s *Sessions) updateCookieFasthttp(ctx *fasthttp.RequestCtx, sid string, expires time.Duration) {
+	cookie := fasthttp.AcquireCookie()
+	defer fasthttp.ReleaseCookie(cookie)
+
+	// The RFC makes no mention of encoding url value, so here I think to encode both sessionid key and the value using the safe(to put and to use as cookie) url-encoding
+	cookie.SetKey(s.config.Cookie)
+
+	cookie.SetValue(sid)
+	cookie.SetPath("/")
+	if !s.config.DisableSubdomainPersistence {
+
+		requestDomain := string(ctx.Host())
+		if portIdx := strings.IndexByte(requestDomain, ':'); portIdx > 0 {
+			requestDomain = requestDomain[0:portIdx]
+		}
+		if IsValidCookieDomain(requestDomain) {
+
+			// RFC2109, we allow level 1 subdomains, but no further
+			// if we have localhost.com , we want the localhost.cos.
+			// so if we have something like: mysubdomain.localhost.com we want the localhost here
+			// if we have mysubsubdomain.mysubdomain.localhost.com we want the .mysubdomain.localhost.com here
+			// slow things here, especially the 'replace' but this is a good and understable( I hope) way to get the be able to set cookies from subdomains & domain with 1-level limit
+			if dotIdx := strings.LastIndexByte(requestDomain, '.'); dotIdx > 0 {
+				// is mysubdomain.localhost.com || mysubsubdomain.mysubdomain.localhost.com
+				s := requestDomain[0:dotIdx] // set mysubdomain.localhost || mysubsubdomain.mysubdomain.localhost
+				if secondDotIdx := strings.LastIndexByte(s, '.'); secondDotIdx > 0 {
+					//is mysubdomain.localhost ||  mysubsubdomain.mysubdomain.localhost
+					s = s[secondDotIdx+1:] // set to localhost || mysubdomain.localhost
+				}
+				// replace the s with the requestDomain before the domain's siffux
+				subdomainSuff := strings.LastIndexByte(requestDomain, '.')
+				if subdomainSuff > len(s) { // if it is actual exists as subdomain suffix
+					requestDomain = strings.Replace(requestDomain, requestDomain[0:subdomainSuff], s, 1) // set to localhost.com || mysubdomain.localhost.com
+				}
+			}
+			// finally set the .localhost.com (for(1-level) || .mysubdomain.localhost.com (for 2-level subdomain allow)
+			cookie.SetDomain("." + requestDomain) // . to allow persistence
+		}
+	}
+
+	cookie.SetHTTPOnly(true)
+	// MaxAge=0 means no 'Max-Age' attribute specified.
+	// MaxAge<0 means delete cookie now, equivalently 'Max-Age: 0'
+	// MaxAge>0 means Max-Age attribute present and given in seconds
+	if expires >= 0 {
+		if expires == 0 { // unlimited life
+			cookie.SetExpire(CookieExpireUnlimited)
+		} else { // > 0
+			cookie.SetExpire(time.Now().Add(expires))
+		}
+	}
+
+	// set the cookie to secure if this is a tls wrapped request
+	// and the configuration allows it.
+
+	if ctx.IsTLS() && s.config.CookieSecureTLS {
+		cookie.SetSecure(true)
+	}
+
+	// encode the session id cookie client value right before send it.
+	cookie.SetValue(s.encodeCookieValue(string(cookie.Value())))
+	AddCookieFasthttp(ctx, cookie)
 }
 
-// Destroy kills the net/http session and remove the associated cookie
-func (s *sessions) Destroy(res http.ResponseWriter, req *http.Request) {
-	cookieValue := GetCookie(s.config.Cookie, req)
+// StartFasthttp starts the session for the particular request.
+func StartFasthttp(ctx *fasthttp.RequestCtx) *Session {
+	return Default.StartFasthttp(ctx)
+}
+
+// StartFasthttp starts the session for the particular request.
+func (s *Sessions) StartFasthttp(ctx *fasthttp.RequestCtx) *Session {
+	cookieValue := s.decodeCookieValue(GetCookieFasthttp(ctx, s.config.Cookie))
+
+	if cookieValue == "" { // cookie doesn't exists, let's generate a session and add set a cookie
+		sid := s.config.SessionIDGenerator()
+
+		sess := s.provider.Init(sid, s.config.Expires)
+		sess.isNew = sess.values.Len() == 0
+
+		s.updateCookieFasthttp(ctx, sid, s.config.Expires)
+
+		return sess
+	}
+
+	sess := s.provider.Read(cookieValue, s.config.Expires)
+
+	return sess
+}
+
+// ShiftExpiration move the expire date of a session to a new date
+// by using session default timeout configuration.
+func ShiftExpiration(w http.ResponseWriter, r *http.Request) {
+	Default.ShiftExpiration(w, r)
+}
+
+// ShiftExpiration move the expire date of a session to a new date
+// by using session default timeout configuration.
+func (s *Sessions) ShiftExpiration(w http.ResponseWriter, r *http.Request) {
+	s.UpdateExpiration(w, r, s.config.Expires)
+}
+
+// ShiftExpirationFasthttp move the expire date of a session to a new date
+// by using session default timeout configuration.
+func ShiftExpirationFasthttp(ctx *fasthttp.RequestCtx) {
+	Default.ShiftExpirationFasthttp(ctx)
+}
+
+// ShiftExpirationFasthttp move the expire date of a session to a new date
+// by using session default timeout configuration.
+func (s *Sessions) ShiftExpirationFasthttp(ctx *fasthttp.RequestCtx) {
+	s.UpdateExpirationFasthttp(ctx, s.config.Expires)
+}
+
+// UpdateExpiration change expire date of a session to a new date
+// by using timeout value passed by `expires` receiver.
+func UpdateExpiration(w http.ResponseWriter, r *http.Request, expires time.Duration) {
+	Default.UpdateExpiration(w, r, expires)
+}
+
+// UpdateExpiration change expire date of a session to a new date
+// by using timeout value passed by `expires` receiver.
+func (s *Sessions) UpdateExpiration(w http.ResponseWriter, r *http.Request, expires time.Duration) {
+	cookieValue := s.decodeCookieValue(GetCookie(r, s.config.Cookie))
+
+	if cookieValue != "" {
+		if s.provider.UpdateExpiration(cookieValue, expires) {
+			s.updateCookie(w, r, cookieValue, expires)
+		}
+	}
+}
+
+// UpdateExpirationFasthttp change expire date of a session to a new date
+// by using timeout value passed by `expires` receiver.
+func UpdateExpirationFasthttp(ctx *fasthttp.RequestCtx, expires time.Duration) {
+	Default.UpdateExpirationFasthttp(ctx, expires)
+}
+
+// UpdateExpirationFasthttp change expire date of a session to a new date
+// by using timeout value passed by `expires` receiver.
+func (s *Sessions) UpdateExpirationFasthttp(ctx *fasthttp.RequestCtx, expires time.Duration) {
+	cookieValue := s.decodeCookieValue(GetCookieFasthttp(ctx, s.config.Cookie))
+
+	if cookieValue != "" {
+		if s.provider.UpdateExpiration(cookieValue, expires) {
+			s.updateCookieFasthttp(ctx, cookieValue, expires)
+		}
+	}
+}
+
+func (s *Sessions) destroy(cookieValue string) {
 	// decode the client's cookie value in order to find the server's session id
 	// to destroy the session data.
 	cookieValue = s.decodeCookieValue(cookieValue)
 	if cookieValue == "" { // nothing to destroy
 		return
 	}
-	RemoveCookie(s.config.Cookie, res, req)
 	s.provider.Destroy(cookieValue)
 }
 
-// DestroyByID removes the session entry
-// from the server-side memory (and database if registered).
-// Client's session cookie will still exist but it will be reseted on the next request.
-//
-// It's safe to use it even if you are not sure if a session with that id exists.
-//
-// Note: sid is the original session id (may fetched by a store).
-//
-// Works for both net/http & fasthttp
-func DestroyByID(sid string) {
-	defaultSessions.DestroyByID(sid)
+// Destroy remove the session data and remove the associated cookie.
+func Destroy(w http.ResponseWriter, r *http.Request) {
+	Default.Destroy(w, r)
+}
+
+// Destroy remove the session data and remove the associated cookie.
+func (s *Sessions) Destroy(w http.ResponseWriter, r *http.Request) {
+	cookieValue := GetCookie(r, s.config.Cookie)
+	s.destroy(cookieValue)
+	RemoveCookie(w, r, s.config.Cookie)
+}
+
+// DestroyFasthttp remove the session data and remove the associated cookie.
+func DestroyFasthttp(ctx *fasthttp.RequestCtx) {
+	Default.DestroyFasthttp(ctx)
+}
+
+// DestroyFasthttp remove the session data and remove the associated cookie.
+func (s *Sessions) DestroyFasthttp(ctx *fasthttp.RequestCtx) {
+	cookieValue := GetCookieFasthttp(ctx, s.config.Cookie)
+	s.destroy(cookieValue)
+	RemoveCookieFasthttp(ctx, s.config.Cookie)
 }
 
 // DestroyByID removes the session entry
@@ -229,127 +349,46 @@ func DestroyByID(sid string) {
 //
 // It's safe to use it even if you are not sure if a session with that id exists.
 //
-// Note: sid is the original session id (may fetched by a store).
+// Note: the sid should be the original one (i.e: fetched by a store )
+// it's not decoded.
+func DestroyByID(sid string) {
+	Default.DestroyByID(sid)
+}
+
+// DestroyByID removes the session entry
+// from the server-side memory (and database if registered).
+// Client's session cookie will still exist but it will be reseted on the next request.
 //
-// Works for both net/http & fasthttp
-func (s *sessions) DestroyByID(sid string) {
+// It's safe to use it even if you are not sure if a session with that id exists.
+//
+// Note: the sid should be the original one (i.e: fetched by a store )
+// it's not decoded.
+func (s *Sessions) DestroyByID(sid string) {
 	s.provider.Destroy(sid)
 }
 
 // DestroyAll removes all sessions
 // from the server-side memory (and database if registered).
 // Client's session cookie will still exist but it will be reseted on the next request.
-// Works for both net/http & fasthttp
 func DestroyAll() {
-	defaultSessions.DestroyAll()
+	Default.DestroyAll()
 }
 
 // DestroyAll removes all sessions
 // from the server-side memory (and database if registered).
 // Client's session cookie will still exist but it will be reseted on the next request.
-// Works for both net/http & fasthttp
-func (s *sessions) DestroyAll() {
+func (s *Sessions) DestroyAll() {
 	s.provider.DestroyAll()
 }
 
-// StartFasthttp starts the session for the particular valyala/fasthttp request
-func StartFasthttp(reqCtx *fasthttp.RequestCtx) Session {
-	return defaultSessions.StartFasthttp(reqCtx)
-}
-
-// Start starts the session for the particular valyala/fasthttp request
-func (s *sessions) StartFasthttp(reqCtx *fasthttp.RequestCtx) Session {
-	var sess Session
-
-	cookieValue := GetFasthttpCookie(s.config.Cookie, reqCtx)
-
-	if cookieValue == "" { // cookie doesn't exists, let's generate a session and add set a cookie
-		sid := SessionIDGenerator(s.config.CookieLength)
-		sess = s.provider.Init(sid, s.config.Expires)
-		cookie := fasthttp.AcquireCookie()
-		// The RFC makes no mention of encoding url value, so here I think to encode both sessionid key and the value using the safe(to put and to use as cookie) url-encoding
-		cookie.SetKey(s.config.Cookie)
-		cookie.SetValue(sid)
-		cookie.SetPath("/")
-		if !s.config.DisableSubdomainPersistence {
-			requestDomain := string(reqCtx.Host())
-			if portIdx := strings.IndexByte(requestDomain, ':'); portIdx > 0 {
-				requestDomain = requestDomain[0:portIdx]
-			}
-			if IsValidCookieDomain(requestDomain) {
-
-				// RFC2109, we allow level 1 subdomains, but no further
-				// if we have localhost.com , we want the localhost.cos.
-				// so if we have something like: mysubdomain.localhost.com we want the localhost here
-				// if we have mysubsubdomain.mysubdomain.localhost.com we want the .mysubdomain.localhost.com here
-				// slow things here, especially the 'replace' but this is a good and understable( I hope) way to get the be able to set cookies from subdomains & domain with 1-level limit
-				if dotIdx := strings.LastIndexByte(requestDomain, '.'); dotIdx > 0 {
-					// is mysubdomain.localhost.com || mysubsubdomain.mysubdomain.localhost.com
-					s := requestDomain[0:dotIdx] // set mysubdomain.localhost || mysubsubdomain.mysubdomain.localhost
-					if secondDotIdx := strings.LastIndexByte(s, '.'); secondDotIdx > 0 {
-						//is mysubdomain.localhost ||  mysubsubdomain.mysubdomain.localhost
-						s = s[secondDotIdx+1:] // set to localhost || mysubdomain.localhost
-					}
-					// replace the s with the requestDomain before the domain's siffux
-					subdomainSuff := strings.LastIndexByte(requestDomain, '.')
-					if subdomainSuff > len(s) { // if it is actual exists as subdomain suffix
-						requestDomain = strings.Replace(requestDomain, requestDomain[0:subdomainSuff], s, 1) // set to localhost.com || mysubdomain.localhost.com
-					}
-				}
-				// finally set the .localhost.com (for(1-level) || .mysubdomain.localhost.com (for 2-level subdomain allow)
-				cookie.SetDomain("." + requestDomain) // . to allow persistance
-			}
-
-		}
-		cookie.SetHTTPOnly(true)
-		if s.config.Expires == 0 {
-			// unlimited life
-			cookie.SetExpire(CookieExpireUnlimited)
-		} else if s.config.Expires > 0 {
-			cookie.SetExpire(time.Now().Add(s.config.Expires))
-		} // if it's -1 then the cookie is deleted when the browser closes
-
-		// encode the session id cookie client value right before send it.
-		cookie.SetValue(s.encodeCookieValue(string(cookie.Value())))
-		AddFasthttpCookie(cookie, reqCtx)
-		fasthttp.ReleaseCookie(cookie)
-	} else {
-		cookieValue = s.decodeCookieValue(cookieValue)
-
-		sess = s.provider.Read(cookieValue, s.config.Expires)
-	}
-	return sess
-}
-
-// DestroyFasthttp kills the valyala/fasthttp session and remove the associated cookie
-func DestroyFasthttp(reqCtx *fasthttp.RequestCtx) {
-	defaultSessions.DestroyFasthttp(reqCtx)
-}
-
-// DestroyFasthttp kills the valyala/fasthttp session and remove the associated cookie
-func (s *sessions) DestroyFasthttp(reqCtx *fasthttp.RequestCtx) {
-	cookieValue := GetFasthttpCookie(s.config.Cookie, reqCtx)
-	// decode the client's cookie value in order to find the server's session id
-	// to destroy the session data.
-	cookieValue = s.decodeCookieValue(cookieValue)
-	if cookieValue == "" { // nothing to destroy
-		return
-	}
-	RemoveFasthttpCookie(s.config.Cookie, reqCtx)
-	s.provider.Destroy(cookieValue)
-}
-
-// Global generator, no logic for per-manager for now.
-
-// SessionIDGenerator returns a random string, used to set the session id
-// you are able to override this to use your own method for generate session ids
-var SessionIDGenerator = func(strLength int) string {
-	return base64.URLEncoding.EncodeToString(random(strLength))
-}
-
 // let's keep these funcs simple, we can do it with two lines but we may add more things in the future.
-func (s *sessions) decodeCookieValue(cookieValue string) string {
+func (s *Sessions) decodeCookieValue(cookieValue string) string {
+	if cookieValue == "" {
+		return ""
+	}
+
 	var cookieValueDecoded *string
+
 	if decode := s.config.Decode; decode != nil {
 		err := decode(s.config.Cookie, cookieValue, &cookieValueDecoded)
 		if err == nil {
@@ -358,10 +397,11 @@ func (s *sessions) decodeCookieValue(cookieValue string) string {
 			cookieValue = ""
 		}
 	}
+
 	return cookieValue
 }
 
-func (s *sessions) encodeCookieValue(cookieValue string) string {
+func (s *Sessions) encodeCookieValue(cookieValue string) string {
 	if encode := s.config.Encode; encode != nil {
 		newVal, err := encode(s.config.Cookie, cookieValue)
 		if err == nil {

@@ -2,6 +2,7 @@ package sessions
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -12,11 +13,10 @@ import (
 	"github.com/gorilla/securecookie"
 
 	"github.com/gavv/httpexpect"
-	"github.com/kataras/go-errors"
 	"github.com/kataras/go-serializer"
 )
 
-var errReadBody = errors.New("While trying to read %s from the request body. Trace %s")
+var errReadBody = errors.New("While trying to read from the request body")
 
 // ReadJSON reads JSON from request's body
 func ReadJSON(jsonObject interface{}, req *http.Request) error {
@@ -28,7 +28,7 @@ func ReadJSON(jsonObject interface{}, req *http.Request) error {
 	err = decoder.Decode(jsonObject)
 
 	if err != nil && err != io.EOF {
-		return errReadBody.Format("JSON", err.Error())
+		return errReadBody
 	}
 	return nil
 }
@@ -64,14 +64,15 @@ func TestSessionsNetHTTP(t *testing.T) {
 }
 
 func TestSessionsEncodeDecodeNetHTTP(t *testing.T) {
+
 	// AES only supports key sizes of 16, 24 or 32 bytes.
 	// You either need to provide exactly that amount or you derive the key from what you type in.
 	hashKey := []byte("the-big-and-secret-fash-key-here")
 	blockKey := []byte("lot-secret-of-characters-big-too")
 	secureCookie := securecookie.New(hashKey, blockKey)
 	// set the encode/decode funcs and run the test
-	Set(Encode(secureCookie.Encode))
-	Set(Decode(secureCookie.Decode))
+	Default.config.Encode = secureCookie.Encode
+	Default.config.Decode = secureCookie.Decode
 
 	testSessionsNetHTTP(t)
 }

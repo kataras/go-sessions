@@ -1,85 +1,97 @@
 package redis
 
 import (
-	"bytes"
-	"encoding/gob"
+	"runtime"
 
+	"github.com/kataras/go-sessions"
 	"github.com/kataras/go-sessions/sessiondb/redis/service"
+	"github.com/kataras/golog"
 )
 
-// Database the redis database for q sessions
+// Database the redis back-end session database for the sessions.
 type Database struct {
 	redis *service.Service
+	async bool
 }
 
-// New returns a new redis database
+// New returns a new redis database.
 func New(cfg ...service.Config) *Database {
-	return &Database{redis: service.New(cfg...)}
+	db := &Database{redis: service.New(cfg...)}
+	runtime.SetFinalizer(db, closeDB)
+	return db
 }
 
-// Config returns the configuration for the redis server bridge, you can change them
-func (d *Database) Config() *service.Config {
-	return d.redis.Config
+// Config returns the configuration for the redis server bridge, you can change them.
+func (db *Database) Config() *service.Config {
+	return db.redis.Config
 }
 
-// Load loads the values to the underline
-func (d *Database) Load(sid string) map[string]interface{} {
-	values := make(map[string]interface{})
+// Async if true passed then it will use different
+// go routines to update the redis storage.
+func (db *Database) Async(useGoRoutines bool) *Database {
+	db.async = useGoRoutines
+	return db
+}
 
-	if !d.redis.Connected { //yes, check every first time's session for valid redis connection
-		d.redis.Connect()
-		_, err := d.redis.PingPong()
+// Load loads the values to the underline.
+func (db *Database) Load(sid string) (storeDB sessions.RemoteStore) {
+	// values := make(map[string]interface{})
+
+	if !db.redis.Connected { //yes, check every first time's session for valid redis connection
+		db.redis.Connect()
+		_, err := db.redis.PingPong()
 		if err != nil {
-			if err != nil {
-				// don't use to get the logger, just prin these to the console... atm
-				println("Redis Connection error on Connect: " + err.Error())
-				println("But don't panic, auto-switching to memory store right now!")
-			}
+			golog.Errorf("redis database error on connect: %v", err)
+			return
 		}
 	}
-	//fetch the values from this session id and copy-> store them
-	val, err := d.redis.GetBytes(sid)
-	if err == nil {
-		err = DeserializeBytes(val, &values)
-	}
 
-	return values
-
-}
-
-// serialize the values to be stored as strings inside the Redis, we panic at any serialization error here
-func serialize(values map[string]interface{}) []byte {
-	val, err := SerializeBytes(values)
+	// fetch the values from this session id and copy-> store them
+	storeMaybe, err := db.redis.Get(sid)
 	if err != nil {
-		println("On redisstore.serialize: " + err.Error())
+		golog.Errorf("error while trying to load session values(%s) from redis: %v", sid, err)
+		return
 	}
 
-	return val
+	storeDB, ok := storeMaybe.(sessions.RemoteStore)
+	if !ok {
+		golog.Errorf(`error while trying to load session values(%s) from redis:
+		the retrieved value is not a sessions.RemoteStore type, please report that as bug, it should never occur`,
+			sid)
+		return
+	}
+
+	return
 }
 
-// Update updates the real redis store
-func (d *Database) Update(sid string, newValues map[string]interface{}) {
-	if len(newValues) == 0 {
-		go d.redis.Delete(sid)
+// Sync syncs the database.
+func (db *Database) Sync(p sessions.SyncPayload) {
+	if db.async {
+		go db.sync(p)
 	} else {
-		go d.redis.Set(sid, serialize(newValues)) //set/update all the values
+		db.sync(p)
 	}
-
 }
 
-// SerializeBytes serializa bytes using gob encoder and returns them
-func SerializeBytes(m interface{}) ([]byte, error) {
-	buf := new(bytes.Buffer)
-	enc := gob.NewEncoder(buf)
-	err := enc.Encode(m)
-	if err == nil {
-		return buf.Bytes(), nil
+func (db *Database) sync(p sessions.SyncPayload) {
+	if p.Action == sessions.ActionDestroy {
+		db.redis.Delete(p.SessionID)
+		return
 	}
-	return nil, err
+	storeB, err := p.Store.Serialize()
+	if err != nil {
+		golog.Error("error while encoding the remote session store")
+		return
+	}
+
+	db.redis.Set(p.SessionID, storeB, p.Store.Lifetime.Second())
 }
 
-// DeserializeBytes converts the bytes to an object using gob decoder
-func DeserializeBytes(b []byte, m interface{}) error {
-	dec := gob.NewDecoder(bytes.NewBuffer(b))
-	return dec.Decode(m) //no reference here otherwise doesn't work because of go remote object
+// Close shutdowns the redis connection.
+func (db *Database) Close() error {
+	return closeDB(db)
+}
+
+func closeDB(db *Database) error {
+	return db.redis.CloseConnection()
 }
