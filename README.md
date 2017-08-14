@@ -5,15 +5,15 @@
 
  <a href="https://travis-ci.org/kataras/go-sessions"><img src="https://img.shields.io/travis/kataras/go-sessions.svg?style=flat-square" alt="Build Status"></a>
  <a href="https://github.com/kataras/go-sessions/blob/master/LICENSE"><img src="https://img.shields.io/badge/%20license-MIT%20%20License%20-E91E63.svg?style=flat-square" alt="License"></a>
- <a href="https://github.com/kataras/go-sessions/releases"><img src="https://img.shields.io/badge/%20release%20-%20v1.0.2-blue.svg?style=flat-square" alt="Releases"></a>
- <a href="#docs"><img src="https://img.shields.io/badge/%20docs-reference-5272B4.svg?style=flat-square" alt="Read me docs"></a>
+ <a href="https://github.com/kataras/go-sessions/releases"><img src="https://img.shields.io/badge/%20release%20-%20v2.0.0-blue.svg?style=flat-square" alt="Releases"></a>
+ <a href="#documentation"><img src="https://img.shields.io/badge/%20docs-reference-5272B4.svg?style=flat-square" alt="Read me docs"></a>
  <a href="https://kataras.rocket.chat/channel/go-sessions"><img src="https://img.shields.io/badge/%20community-chat-00BCD4.svg?style=flat-square" alt="Build Status"></a>
  <a href="https://golang.org"><img src="https://img.shields.io/badge/powered_by-Go-3362c2.svg?style=flat-square" alt="Built with GoLang"></a>
  <a href="#"><img src="https://img.shields.io/badge/platform-All-yellow.svg?style=flat-square" alt="Platforms"></a>
 <br/>
 
 <a href="#features" >Fast</a> http sessions manager for Go.<br/>
-Simple <a href ="#docs">API</a>, while providing robust set of features such as immutability, expiration time (can be shifted), databases like boltdb, raw file, leveldb and redis as back-end storage.<br/>
+Simple <a href ="#outline">API</a>, while providing robust set of features such as immutability, expiration time (can be shifted), databases like boltdb, raw file, leveldb and redis as back-end storage.<br/>
 
 </p>
 
@@ -40,6 +40,7 @@ sess.
   GetFlashes() map[string]interface{}
   VisitAll(cb func(k string, v interface{}))
   Set(string, interface{})
+  SetImmutable(key string, value interface{})
   SetFlash(string, interface{})
   Delete(string)
   Clear()
@@ -61,15 +62,27 @@ Features
 
 - Focus on simplicity and performance.
 - Flash messages.
-- Supports any type of [external database](https://github.com/kataras/go-sessions/tree/master/_examples/3_redis_sessiondb).
+- Supports any type of [external database](_examples/database).
 - Works with both [net/http](https://golang.org/pkg/net/http/) and [valyala/fasthttp](https://github.com/valyala/fasthttp).
 
-
-Docs
+Documentation
 ------------
 
 Take a look at the [./examples](https://github.com/kataras/go-sessions/tree/master/_examples) folder.
 
+- [Overview](_examples/overview/main.go)
+- [Standalone](_examples/standalone/main.go)
+- [Fasthttp](_examples/fasthttp/main.go)
+- [Secure Cookie](_examples/securecookie/main.go)
+- [Flash Messages](_examples/flash-messages/main.go)
+- [Databases](_examples/database)
+	* [File](_examples/database/file/main.go)
+	* [BoltDB](_examples/database/boltdb/main.go)
+	* [LevelDB](_examples/database/leveldb/main.go)
+	* [Redis](_examples/database/redis/main.go)
+
+Outline
+------------
 
 ```go
 // Start starts the session for the particular net/http request
@@ -487,7 +500,7 @@ License can be found [here](LICENSE).
 [Travis]: http://travis-ci.org/kataras/go-sessions
 [License Widget]: https://img.shields.io/badge/license-MIT%20%20License%20-E91E63.svg?style=flat-square
 [License]: https://github.com/kataras/go-sessions/blob/master/LICENSE
-[Release Widget]: https://img.shields.io/badge/release-v1.0.2-blue.svg?style=flat-square
+[Release Widget]: https://img.shields.io/badge/release-v2.0.0-blue.svg?style=flat-square
 [Release]: https://github.com/kataras/go-sessions/releases
 [Chat Widget]: https://img.shields.io/badge/community-chat-00BCD4.svg?style=flat-square
 [Chat]: https://kataras.rocket.chat/channel/go-sessions
