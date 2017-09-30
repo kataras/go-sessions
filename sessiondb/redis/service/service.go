@@ -1,18 +1,17 @@
 package service
 
 import (
-	"errors"
-	"fmt"
 	"time"
 
 	"github.com/garyburd/redigo/redis"
+	"github.com/kataras/iris/core/errors"
 )
 
 var (
 	// ErrRedisClosed an error with message 'Redis is already closed'
 	ErrRedisClosed = errors.New("Redis is already closed")
-	// errKeyNotFoundFormat an error with message 'Key $thekey doesn't found'
-	errKeyNotFoundFormat = "Key '%s' doesn't found"
+	// ErrKeyNotFound an error with message 'Key $thekey doesn't found'
+	ErrKeyNotFound = errors.New("Key '%s' doesn't found")
 )
 
 // Service the Redis service, contains the config and the redis pool
@@ -77,7 +76,7 @@ func (r *Service) Get(key string) (interface{}, error) {
 		return nil, err
 	}
 	if redisVal == nil {
-		return nil, fmt.Errorf(errKeyNotFoundFormat, key)
+		return nil, ErrKeyNotFound.Format(key)
 	}
 	return redisVal, nil
 }
@@ -119,7 +118,7 @@ func (r *Service) GetBytes(key string) ([]byte, error) {
 		return nil, err
 	}
 	if redisVal == nil {
-		return nil, fmt.Errorf(errKeyNotFoundFormat, key)
+		return nil, ErrKeyNotFound.Format(key)
 	}
 
 	return redis.Bytes(redisVal, err)

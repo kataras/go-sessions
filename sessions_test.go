@@ -12,7 +12,7 @@ import (
 	// At this test code we use the gorilla's securecookie library:
 	"github.com/gorilla/securecookie"
 
-	"github.com/gavv/httpexpect"
+	"github.com/iris-contrib/httpexpect"
 	"github.com/kataras/go-serializer"
 )
 
@@ -148,7 +148,7 @@ func testSessionsNetHTTP(t *testing.T) {
 	e.POST("/set/").WithJSON(values).Expect().Status(http.StatusOK).Cookies().NotEmpty()
 	e.GET("/get/").Expect().Status(http.StatusOK).JSON().Object().Equal(values)
 
-	// test destory which also clears first
+	// test destroy which also clears first
 	d := e.GET("/destroy/").Expect().Status(http.StatusOK)
 	d.JSON().Object().Empty()
 	e.GET("/after_destroy/").Expect().Status(http.StatusOK).Cookies().Empty()
@@ -161,7 +161,7 @@ func testSessionsNetHTTP(t *testing.T) {
 	// set,get and destroy with (all function)
 	e.POST("/set/").WithJSON(values).Expect().Status(http.StatusOK)
 	e.GET("/get/").Expect().Status(http.StatusOK).JSON().Object().Equal(values)
-	// test destory which also clears first
+	// test destroy which also clears first
 	e.GET("/destroyall/").Expect().Status(http.StatusOK).JSON().Object().Empty()
 	e.GET("/after_destroy/").Expect().Status(http.StatusOK).Cookies().Empty()
 }
@@ -259,7 +259,7 @@ func TestFlashMessages(t *testing.T) {
 	e.GET("/get/").Expect().Status(http.StatusOK).JSON().Object().Equal(values)
 	// get the same flash on other request should return nothing because the flash message is removed after fetch once
 	e.GET("/get/").Expect().Status(http.StatusOK).JSON().Object().Empty()
-	// test destory which also clears first
+	// test destroy which also clears first
 	d := e.GET("/destroy/").Expect().Status(http.StatusOK)
 	d.JSON().Object().Empty()
 	e.GET("/after_destroy/").Expect().Status(http.StatusOK).Cookies().Empty()
