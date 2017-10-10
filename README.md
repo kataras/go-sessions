@@ -3,6 +3,10 @@
 <img  width="600" src="https://github.com/kataras/go-sessions/raw/master/logo_900_273_bg_white.png">
 <br/><br/>
 
+<a target='_blank' rel='nofollow' href='https://app.codesponsor.io/link/Qw6E1MTHvUJW6BtwUUf9qwsy/kataras/go-sessions'>
+  <img alt='Sponsor' width='888' height='68' src='https://app.codesponsor.io/embed/Qw6E1MTHvUJW6BtwUUf9qwsy/kataras/go-sessions.svg' />
+</a>
+
  <a href="https://travis-ci.org/kataras/go-sessions"><img src="https://img.shields.io/travis/kataras/go-sessions.svg?style=flat-square" alt="Build Status"></a>
  <a href="https://github.com/kataras/go-sessions/blob/master/LICENSE"><img src="https://img.shields.io/badge/%20license-MIT%20%20License%20-E91E63.svg?style=flat-square" alt="License"></a>
  <a href="https://github.com/kataras/go-sessions/releases"><img src="https://img.shields.io/badge/%20release%20-%20v2.1.0-blue.svg?style=flat-square" alt="Releases"></a>
@@ -13,7 +17,7 @@
 <br/>
 
 <a href="#features" >Fast</a> http sessions manager for Go.<br/>
-Simple <a href ="#outline">API</a>, while providing robust set of features such as immutability, expiration time (can be shifted), databases like boltdb, raw file, leveldb and redis as back-end storage.<br/>
+Simple <a href ="#outline">API</a>, while providing robust set of features such as immutability, expiration time (can be shifted), [databases](sessiondb) like badger, boltdb, raw file, leveldb and redis as back-end storage.<br/>
 
 </p>
 
@@ -77,7 +81,6 @@ Take a look at the [./examples](https://github.com/kataras/go-sessions/tree/mast
 - [Databases](_examples/database)
 	* [File](_examples/database/file/main.go)
 	* [BoltDB](_examples/database/boltdb/main.go)
-	* [LevelDB](_examples/database/leveldb/main.go)
 	* [Redis](_examples/database/redis/main.go)
 
 Outline
@@ -124,7 +127,6 @@ DestroyAll()
 // see https://github.com/kataras/go-sessions/tree/master/sessiondb
 UseDatabase(Database)
 ```
-
 
 ### Configuration
 
@@ -475,13 +477,10 @@ Read more about Semantic Versioning 2.0.0
  - https://en.wikipedia.org/wiki/Software_versioning
  - https://wiki.debian.org/UpstreamGuide#Releases_and_Versions
 
-
-
 People
 ------------
 
 The author of go-sessions is [@kataras](https://github.com/kataras).
-
 
 Contributing
 ------------
