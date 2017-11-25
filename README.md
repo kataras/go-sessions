@@ -3,10 +3,6 @@
 <img  width="600" src="https://github.com/kataras/go-sessions/raw/master/logo_900_273_bg_white.png">
 <br/><br/>
 
-<a target='_blank' rel='nofollow' href='https://app.codesponsor.io/link/Qw6E1MTHvUJW6BtwUUf9qwsy/kataras/go-sessions'>
-  <img alt='Sponsor' width='888' height='68' src='https://app.codesponsor.io/embed/Qw6E1MTHvUJW6BtwUUf9qwsy/kataras/go-sessions.svg' />
-</a>
-
  <a href="https://travis-ci.org/kataras/go-sessions"><img src="https://img.shields.io/travis/kataras/go-sessions.svg?style=flat-square" alt="Build Status"></a>
  <a href="https://github.com/kataras/go-sessions/blob/master/LICENSE"><img src="https://img.shields.io/badge/%20license-MIT%20%20License%20-E91E63.svg?style=flat-square" alt="License"></a>
  <a href="https://github.com/kataras/go-sessions/releases"><img src="https://img.shields.io/badge/%20release%20-%20v2.1.0-blue.svg?style=flat-square" alt="Releases"></a>
