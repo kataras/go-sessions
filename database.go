@@ -3,8 +3,6 @@ package sessions
 import (
 	"sync"
 	"time"
-
-	"github.com/kataras/iris/core/memstore"
 )
 
 // Database is the interface which all session databases should implement
@@ -39,17 +37,17 @@ type Database interface {
 }
 
 type mem struct {
-	values map[string]*memstore.Store
+	values map[string]*Store
 	mu     sync.RWMutex
 }
 
 var _ Database = (*mem)(nil)
 
-func newMemDB() Database { return &mem{values: make(map[string]*memstore.Store)} }
+func newMemDB() Database { return &mem{values: make(map[string]*Store)} }
 
 func (s *mem) Acquire(sid string, expires time.Duration) LifeTime {
 	s.mu.Lock()
-	s.values[sid] = new(memstore.Store)
+	s.values[sid] = new(Store)
 	s.mu.Unlock()
 	return LifeTime{}
 }
