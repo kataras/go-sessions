@@ -1,5 +1,23 @@
 language: go
-
+os:
+  - linux
+  - osx
 go:
-  - go1.8
-  - tip
+  - "go1.8"
+  - "go1.9"
+  - "go1.10"
+go_import_path: github.com/kataras/go-sessions
+# we disable test caching via GOCACHE=off
+env:
+  global:
+    - GOCACHE=off
+install:
+  - go get ./...
+script:
+  - go test -v -cover ./...
+after_script:
+  # examples
+  - cd ./_examples
+  - go get ./...
+  - go test -v -cover ./...
+  - cd ../

@@ -19,7 +19,9 @@ func main() {
 		MaxActive:   0,
 		IdleTimeout: service.DefaultRedisIdleTimeout,
 		Prefix:      "",
-	})
+	}) // to use badger just use the sessiondb/badger#New func.
+
+	defer db.Close()
 
 	sess := sessions.New(sessions.Config{Cookie: "sessionscookieid"})
 

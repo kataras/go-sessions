@@ -5,7 +5,7 @@
 
  <a href="https://travis-ci.org/kataras/go-sessions"><img src="https://img.shields.io/travis/kataras/go-sessions.svg?style=flat-square" alt="Build Status"></a>
  <a href="https://github.com/kataras/go-sessions/blob/master/LICENSE"><img src="https://img.shields.io/badge/%20license-MIT%20%20License%20-E91E63.svg?style=flat-square" alt="License"></a>
- <a href="https://github.com/kataras/go-sessions/releases"><img src="https://img.shields.io/badge/%20release%20-%20v2.1.0-blue.svg?style=flat-square" alt="Releases"></a>
+ <a href="https://github.com/kataras/go-sessions/releases"><img src="https://img.shields.io/badge/%20release%20-%20v3.0.0-blue.svg?style=flat-square" alt="Releases"></a>
  <a href="#documentation"><img src="https://img.shields.io/badge/%20docs-reference-5272B4.svg?style=flat-square" alt="Read me docs"></a>
  <a href="https://kataras.rocket.chat/channel/go-sessions"><img src="https://img.shields.io/badge/%20community-chat-00BCD4.svg?style=flat-square" alt="Build Status"></a>
  <a href="https://golang.org"><img src="https://img.shields.io/badge/powered_by-Go-3362c2.svg?style=flat-square" alt="Built with GoLang"></a>
@@ -13,7 +13,7 @@
 <br/>
 
 <a href="#features" >Fast</a> http sessions manager for Go.<br/>
-Simple <a href ="#outline">API</a>, while providing robust set of features such as immutability, expiration time (can be shifted), [databases](sessiondb) like badger, boltdb, raw file, leveldb and redis as back-end storage.<br/>
+Simple <a href ="#outline">API</a>, while providing robust set of features such as immutability, expiration time (can be shifted), [databases](sessiondb) like badger and redis as back-end storage.<br/>
 
 </p>
 
@@ -75,8 +75,6 @@ Take a look at the [./examples](https://github.com/kataras/go-sessions/tree/mast
 - [Secure Cookie](_examples/securecookie/main.go)
 - [Flash Messages](_examples/flash-messages/main.go)
 - [Databases](_examples/database)
-	* [File](_examples/database/file/main.go)
-	* [BoltDB](_examples/database/boltdb/main.go)
 	* [Redis](_examples/database/redis/main.go)
 
 Outline
@@ -127,11 +125,11 @@ UseDatabase(Database)
 ### Configuration
 
 ```go
-// Config is the configuration for sessions. Please review it well before using sessions.
-type Config struct {
+// Config is the configuration for sessions. Please read it before using sessions.
+Config struct {
 	// Cookie string, the session's client cookie name, for example: "mysessionid"
 	//
-	// Defaults to "gosessionid"
+	// Defaults to "irissessionid".
 	Cookie string
 
 	// CookieSecureTLS set to true if server is running over TLS
@@ -141,11 +139,19 @@ type Config struct {
 	// Recommendation: You don't need this to be setted to true, just fill the Encode and Decode fields
 	// with a third-party library like secure cookie, example is provided at the _examples folder.
 	//
-	// Defaults to false
+	// Defaults to false.
 	CookieSecureTLS bool
 
+	// AllowReclaim will allow to
+	// Destroy and Start a session in the same request handler.
+	// All it does is that it removes the cookie for both `Request` and `ResponseWriter` while `Destroy`
+	// or add a new cookie to `Request` while `Start`.
+	//
+	// Defaults to false.
+	AllowReclaim bool
+
 	// Encode the cookie value if not nil.
-	// Should accept as first argument the cookie name (config.Name)
+	// Should accept as first argument the cookie name (config.Cookie)
 	//         as second argument the server's generated session id.
 	// Should return the new session id, if error the session id setted to empty which is invalid.
 	//
@@ -153,10 +159,10 @@ type Config struct {
 	// and remember: if you use AES it only supports key sizes of 16, 24 or 32 bytes.
 	// You either need to provide exactly that amount or you derive the key from what you type in.
 	//
-	// Defaults to nil
+	// Defaults to nil.
 	Encode func(cookieName string, value interface{}) (string, error)
 	// Decode the cookie value if not nil.
-	// Should accept as first argument the cookie name (config.Name)
+	// Should accept as first argument the cookie name (config.Cookie)
 	//               as second second accepts the client's cookie value (the encoded session id).
 	// Should return an error if decode operation failed.
 	//
@@ -164,8 +170,14 @@ type Config struct {
 	// and remember: if you use AES it only supports key sizes of 16, 24 or 32 bytes.
 	// You either need to provide exactly that amount or you derive the key from what you type in.
 	//
-	// Defaults to nil
+	// Defaults to nil.
 	Decode func(cookieName string, cookieValue string, v interface{}) error
+
+	// Encoding same as Encode and Decode but receives a single instance which
+	// completes the "CookieEncoder" interface, `Encode` and `Decode` functions.
+	//
+	// Defaults to nil.
+	Encoding Encoding
 
 	// Expires the duration of which the cookie must expires (created_time.Add(Expires)).
 	// If you want to delete the cookie when the browser closes, set it to -1.
@@ -174,7 +186,7 @@ type Config struct {
 	// -1 means when browser closes
 	// > 0 is the time.Duration which the session cookies should expire.
 	//
-	// Defaults to infinitive/unlimited life duration(0)
+	// Defaults to infinitive/unlimited life duration(0).
 	Expires time.Duration
 
 	// SessionIDGenerator should returns a random session id.
@@ -184,7 +196,7 @@ type Config struct {
 
 	// DisableSubdomainPersistence set it to true in order dissallow your subdomains to have access to the session cookie
 	//
-	// Defaults to false
+	// Defaults to false.
 	DisableSubdomainPersistence bool
 }
 ```
@@ -465,7 +477,7 @@ If you'd like to discuss this package, or ask questions about it, feel free to
 Versioning
 ------------
 
-Current: **v2.1.0**
+Current: **v3.0.0**
 
 Read more about Semantic Versioning 2.0.0
 
@@ -494,7 +506,7 @@ License can be found [here](LICENSE).
 [Travis]: http://travis-ci.org/kataras/go-sessions
 [License Widget]: https://img.shields.io/badge/license-MIT%20%20License%20-E91E63.svg?style=flat-square
 [License]: https://github.com/kataras/go-sessions/blob/master/LICENSE
-[Release Widget]: https://img.shields.io/badge/release-v2.1.0-blue.svg?style=flat-square
+[Release Widget]: https://img.shields.io/badge/release-v3.0.0-blue.svg?style=flat-square
 [Release]: https://github.com/kataras/go-sessions/releases
 [Chat Widget]: https://img.shields.io/badge/community-chat-00BCD4.svg?style=flat-square
 [Chat]: https://kataras.rocket.chat/channel/go-sessions

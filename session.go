@@ -13,18 +13,11 @@ type (
 	//
 	// This is what will be returned when sess := sessions.Start().
 	Session struct {
-		sid    string
-		isNew  bool
-		values Store // here are the real values
-		// we could set the flash messages inside values but this will bring us more problems
-		// because of session databases and because of
-		// users may want to get all sessions and save them or display them
-		// but without temp values (flash messages) which are removed after fetching.
-		// so introduce a new field here.
-		// NOTE: flashes are not managed by third-party, only inside session struct.
+		sid      string
+		isNew    bool
 		flashes  map[string]*flashMessage
-		mu       sync.RWMutex
-		lifetime LifeTime
+		mu       sync.RWMutex // for flashes.
+		Lifetime LifeTime
 		provider *provider
 	}
 
@@ -35,23 +28,32 @@ type (
 	}
 )
 
+// Destroy destroys this session, it removes its session values and any flashes.
+// This session entry will be removed from the server,
+// the registered session databases will be notified for this deletion as well.
+//
+// Note that this method does NOT remove the client's cookie, although
+// it should be reseted if new session is attached to that (client).
+//
+// Use the session's manager `Destroy(ctx)` in order to remove the cookie as well.
+func (s *Session) Destroy() {
+	s.provider.deleteSession(s)
+}
+
 // ID returns the session's ID.
 func (s *Session) ID() string {
 	return s.sid
 }
 
-// IsNew returns true if is's a new session
+// IsNew returns true if this session is
+// created by the current application's process.
 func (s *Session) IsNew() bool {
 	return s.isNew
 }
 
 // Get returns a value based on its "key".
 func (s *Session) Get(key string) interface{} {
-	s.mu.RLock()
-	value := s.values.Get(key)
-	s.mu.RUnlock()
-
-	return value
+	return s.provider.db.Get(s.sid, key)
 }
 
 // when running on the session manager removes any 'old' flash messages.
@@ -67,7 +69,10 @@ func (s *Session) runFlashGC() {
 
 // HasFlash returns true if this session has available flash messages.
 func (s *Session) HasFlash() bool {
-	return len(s.flashes) > 0
+	s.mu.RLock()
+	has := len(s.flashes) > 0
+	s.mu.RUnlock()
+	return has
 }
 
 // GetFlash returns a stored flash message based on its "key"
@@ -100,40 +105,67 @@ func (s *Session) PeekFlash(key string) interface{} {
 }
 
 func (s *Session) peekFlashMessage(key string) (*flashMessage, bool) {
-	s.mu.Lock()
-	if fv, found := s.flashes[key]; found {
-		return fv, true
-	}
-	s.mu.Unlock()
+	s.mu.RLock()
+	fv, found := s.flashes[key]
+	s.mu.RUnlock()
 
-	return nil, false
+	if !found {
+		return nil, false
+	}
+
+	return fv, true
 }
 
-// GetString same as Get but returns as string, if nil then returns an empty string.
+// GetString same as Get but returns its string representation,
+// if key doesn't exist then it returns an empty string.
 func (s *Session) GetString(key string) string {
 	if value := s.Get(key); value != nil {
 		if v, ok := value.(string); ok {
 			return v
+		}
+
+		if v, ok := value.(int); ok {
+			return strconv.Itoa(v)
+		}
+
+		if v, ok := value.(int64); ok {
+			return strconv.FormatInt(v, 10)
 		}
 	}
 
 	return ""
 }
 
-// GetFlashString same as GetFlash but returns as string, if nil then returns an empty string.
+// GetStringDefault same as Get but returns its string representation,
+// if key doesn't exist then it returns the "defaultValue".
+func (s *Session) GetStringDefault(key string, defaultValue string) string {
+	if v := s.GetString(key); v != "" {
+		return v
+	}
+
+	return defaultValue
+}
+
+// GetFlashString same as `GetFlash` but returns its string representation,
+// if key doesn't exist then it returns an empty string.
 func (s *Session) GetFlashString(key string) string {
+	return s.GetFlashStringDefault(key, "")
+}
+
+// GetFlashStringDefault same as `GetFlash` but returns its string representation,
+// if key doesn't exist then it returns the "defaultValue".
+func (s *Session) GetFlashStringDefault(key string, defaultValue string) string {
 	if value := s.GetFlash(key); value != nil {
 		if v, ok := value.(string); ok {
 			return v
 		}
 	}
 
-	return ""
+	return defaultValue
 }
 
-var errIntParseFormat = "unable to find the %s with key: %s. Found: %#v"
-
-// GetInt same as Get but returns as int, if not found then returns -1 and an error.
+// GetInt same as `Get` but returns its int representation,
+// if key doesn't exist then it returns -1 and a non-nil error.
 func (s *Session) GetInt(key string) (int, error) {
 	v := s.Get(key)
 
@@ -145,10 +177,40 @@ func (s *Session) GetInt(key string) (int, error) {
 		return strconv.Atoi(vstring)
 	}
 
-	return -1, fmt.Errorf(errIntParseFormat, "int", key, v)
+	return -1, fmt.Errorf(errFindParse, "int", key)
 }
 
-// GetInt64 same as Get but returns as int64, if not found then returns -1 and an error.
+// GetIntDefault same as `Get` but returns its int representation,
+// if key doesn't exist then it returns the "defaultValue".
+func (s *Session) GetIntDefault(key string, defaultValue int) int {
+	if v, err := s.GetInt(key); err == nil {
+		return v
+	}
+	return defaultValue
+}
+
+// Increment increments the stored int value saved as "key" by +"n".
+// If value doesn't exist on that "key" then it creates one with the "n" as its value.
+// It returns the new, incremented, value.
+func (s *Session) Increment(key string, n int) (newValue int) {
+	newValue = s.GetIntDefault(key, 0)
+	newValue += n
+	s.Set(key, newValue)
+	return
+}
+
+// Decrement decrements the stored int value saved as "key" by -"n".
+// If value doesn't exist on that "key" then it creates one with the "n" as its value.
+// It returns the new, decremented, value even if it's less than zero.
+func (s *Session) Decrement(key string, n int) (newValue int) {
+	newValue = s.GetIntDefault(key, 0)
+	newValue -= n
+	s.Set(key, newValue)
+	return
+}
+
+// GetInt64 same as `Get` but returns its int64 representation,
+// if key doesn't exist then it returns -1 and a non-nil error.
 func (s *Session) GetInt64(key string) (int64, error) {
 	v := s.Get(key)
 
@@ -164,11 +226,21 @@ func (s *Session) GetInt64(key string) (int64, error) {
 		return strconv.ParseInt(vstring, 10, 64)
 	}
 
-	return -1, fmt.Errorf(errIntParseFormat, "int64", key, v)
-
+	return -1, fmt.Errorf(errFindParse, "int64", key)
 }
 
-// GetFloat32 same as Get but returns as float32, if not found then returns -1 and an error.
+// GetInt64Default same as `Get` but returns its int64 representation,
+// if key doesn't exist it returns the "defaultValue".
+func (s *Session) GetInt64Default(key string, defaultValue int64) int64 {
+	if v, err := s.GetInt64(key); err == nil {
+		return v
+	}
+
+	return defaultValue
+}
+
+// GetFloat32 same as `Get` but returns its float32 representation,
+// if key doesn't exist then it returns -1 and a non-nil error.
 func (s *Session) GetFloat32(key string) (float32, error) {
 	v := s.Get(key)
 
@@ -192,10 +264,21 @@ func (s *Session) GetFloat32(key string) (float32, error) {
 		return float32(vfloat64), nil
 	}
 
-	return -1, fmt.Errorf(errIntParseFormat, "float32", key, v)
+	return -1, fmt.Errorf(errFindParse, "float32", key)
 }
 
-// GetFloat64 same as Get but returns as float64, if not found then returns -1 and an error.
+// GetFloat32Default same as `Get` but returns its float32 representation,
+// if key doesn't exist then it returns the "defaultValue".
+func (s *Session) GetFloat32Default(key string, defaultValue float32) float32 {
+	if v, err := s.GetFloat32(key); err == nil {
+		return v
+	}
+
+	return defaultValue
+}
+
+// GetFloat64 same as `Get` but returns its float64 representation,
+// if key doesn't exist then it returns -1 and a non-nil error.
 func (s *Session) GetFloat64(key string) (float64, error) {
 	v := s.Get(key)
 
@@ -215,29 +298,74 @@ func (s *Session) GetFloat64(key string) (float64, error) {
 		return strconv.ParseFloat(vstring, 32)
 	}
 
-	return -1, fmt.Errorf(errIntParseFormat, "float64", key, v)
+	return -1, fmt.Errorf(errFindParse, "float64", key)
 }
 
-// GetBoolean same as Get but returns as boolean, if not found then returns -1 and an error
+// GetFloat64Default same as `Get` but returns its float64 representation,
+// if key doesn't exist then it returns the "defaultValue".
+func (s *Session) GetFloat64Default(key string, defaultValue float64) float64 {
+	if v, err := s.GetFloat64(key); err == nil {
+		return v
+	}
+
+	return defaultValue
+}
+
+// GetBoolean same as `Get` but returns its boolean representation,
+// if key doesn't exist then it returns false and a non-nil error.
 func (s *Session) GetBoolean(key string) (bool, error) {
 	v := s.Get(key)
+	if v == nil {
+		return false, fmt.Errorf(errFindParse, "bool", key)
+	}
+
 	// here we could check for "true", "false" and 0 for false and 1 for true
 	// but this may cause unexpected behavior from the developer if they expecting an error
 	// so we just check if bool, if yes then return that bool, otherwise return false and an error.
 	if vb, ok := v.(bool); ok {
 		return vb, nil
 	}
+	if vstring, ok := v.(string); ok {
+		return strconv.ParseBool(vstring)
+	}
 
-	return false, fmt.Errorf(errIntParseFormat, "bool", key, v)
+	return false, fmt.Errorf(errFindParse, "bool", key)
+}
+
+// GetBooleanDefault same as `Get` but returns its boolean representation,
+// if key doesn't exist then it returns the "defaultValue".
+func (s *Session) GetBooleanDefault(key string, defaultValue bool) bool {
+	/*
+		Note that here we can't do more than duplicate the GetBoolean's code, because of the "false".
+	*/
+	v := s.Get(key)
+	if v == nil {
+		return defaultValue
+	}
+
+	// here we could check for "true", "false" and 0 for false and 1 for true
+	// but this may cause unexpected behavior from the developer if they expecting an error
+	// so we just check if bool, if yes then return that bool, otherwise return false and an error.
+	if vb, ok := v.(bool); ok {
+		return vb
+	}
+
+	if vstring, ok := v.(string); ok {
+		if b, err := strconv.ParseBool(vstring); err == nil {
+			return b
+		}
+	}
+
+	return defaultValue
 }
 
 // GetAll returns a copy of all session's values.
 func (s *Session) GetAll() map[string]interface{} {
-	items := make(map[string]interface{}, len(s.values))
+	items := make(map[string]interface{}, s.provider.db.Len(s.sid))
 	s.mu.RLock()
-	for _, kv := range s.values {
-		items[kv.Key] = kv.Value()
-	}
+	s.provider.db.Visit(s.sid, func(key string, value interface{}) {
+		items[key] = value
+	})
 	s.mu.RUnlock()
 	return items
 }
@@ -255,43 +383,20 @@ func (s *Session) GetFlashes() map[string]interface{} {
 	return flashes
 }
 
-// VisitAll loop each one entry and calls the callback function func(key,value)
-func (s *Session) VisitAll(cb func(k string, v interface{})) {
-	s.values.Visit(cb)
+// Visit loops each of the entries and calls the callback function func(key, value).
+func (s *Session) Visit(cb func(k string, v interface{})) {
+	s.provider.db.Visit(s.sid, cb)
 }
 
 func (s *Session) set(key string, value interface{}, immutable bool) {
-	action := ActionCreate // defaults to create, means the first insert.
+	s.provider.db.Set(s.sid, s.Lifetime, key, value, immutable)
 
 	s.mu.Lock()
-	isFirst := s.values.Len() == 0
-	entry, isNew := s.values.Save(key, value, immutable)
 	s.isNew = false
-
 	s.mu.Unlock()
-
-	if !isFirst {
-		// we could use s.isNew
-		// which is setted at sessions.go#Start when values are empty
-		// but here we want the specific key-value pair's state.
-		if isNew {
-			action = ActionInsert
-		} else {
-			action = ActionUpdate
-		}
-	}
-
-	/// TODO: remove the expireAt pointer, wtf, we could use zero time instead,
-	// that was not my commit so I will ask for permission first...
-	// rename the expireAt to expiresAt, it seems to make more sense to me
-
-	p := acquireSyncPayload(s, action)
-	p.Value = entry
-
-	syncDatabases(s.provider.databases, p)
 }
 
-// Set fills the session with an entry"value", based on its "key".
+// Set fills the session with an entry "value", based on its "key".
 func (s *Session) Set(key string, value interface{}) {
 	s.set(key, value, false)
 }
@@ -335,16 +440,12 @@ func (s *Session) SetFlash(key string, value interface{}) {
 // Delete removes an entry by its key,
 // returns true if actually something was removed.
 func (s *Session) Delete(key string) bool {
-	s.mu.Lock()
-	removed := s.values.Remove(key)
+	removed := s.provider.db.Delete(s.sid, key)
 	if removed {
+		s.mu.Lock()
 		s.isNew = false
+		s.mu.Unlock()
 	}
-	s.mu.Unlock()
-
-	p := acquireSyncPayload(s, ActionDelete)
-	p.Value = Entry{Key: key}
-	syncDatabases(s.provider.databases, p)
 
 	return removed
 }
@@ -359,12 +460,9 @@ func (s *Session) DeleteFlash(key string) {
 // Clear removes all entries.
 func (s *Session) Clear() {
 	s.mu.Lock()
-	s.values.Reset()
+	s.provider.db.Clear(s.sid)
 	s.isNew = false
 	s.mu.Unlock()
-
-	p := acquireSyncPayload(s, ActionClear)
-	syncDatabases(s.provider.databases, p)
 }
 
 // ClearFlashes removes all flash messages.
