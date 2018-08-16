@@ -41,7 +41,8 @@ func (db *Database) Acquire(sid string, expires time.Duration) sessions.LifeTime
 	seconds, hasExpiration, found := db.redis.TTL(sid)
 	if !found {
 		// not found, create an entry with ttl and return an empty lifetime, session manager will do its job.
-		if err := db.redis.Set(sid, sid, int64(expires.Seconds())); err != nil {
+		// set dummy field called `isSet`` since we can't create empty hashmap with expiry.
+		if err := db.redis.Set(sid, "isSet", true, int64(expires.Seconds())); err != nil {
 			golog.Debug(err)
 		}
 
@@ -50,20 +51,13 @@ func (db *Database) Acquire(sid string, expires time.Duration) sessions.LifeTime
 
 	if !hasExpiration {
 		return sessions.LifeTime{}
-
 	}
 
 	return sessions.LifeTime{Time: time.Now().Add(time.Duration(seconds) * time.Second)}
 }
 
-const delim = "_"
-
-func makeKey(sid, key string) string {
-	return sid + delim + key
-}
-
-// Set sets a key value of a specific session.
-// Ignore the "immutable".
+// Set sets a field and value in session hashmap.
+// TODO: Immutable is not implemented. Need to check if field is already set in hashmap before setting it.
 func (db *Database) Set(sid string, lifetime sessions.LifeTime, key string, value interface{}, immutable bool) {
 	valueBytes, err := sessions.DefaultTranscoder.Marshal(value)
 	if err != nil {
@@ -71,19 +65,21 @@ func (db *Database) Set(sid string, lifetime sessions.LifeTime, key string, valu
 		return
 	}
 
-	if err = db.redis.Set(makeKey(sid, key), valueBytes, int64(lifetime.DurationUntilExpiration().Seconds())); err != nil {
+	// Set hashmap field
+	if err = db.redis.Set(sid, key, valueBytes, int64(lifetime.DurationUntilExpiration().Seconds())); err != nil {
 		golog.Debug(err)
 	}
 }
 
-// Get retrieves a session value based on the key.
+// Get retrieves a session field value from session hashmap.
 func (db *Database) Get(sid string, key string) (value interface{}) {
-	db.get(makeKey(sid, key), &value)
+	db.get(sid, key, &value)
 	return
 }
 
-func (db *Database) get(key string, outPtr interface{}) {
-	data, err := db.redis.Get(key)
+// get retrieves a session field value from session hashmap.
+func (db *Database) get(key, field string, outPtr interface{}) {
+	data, err := db.redis.Get(key, field)
 	if err != nil {
 		// not found.
 		return
@@ -95,7 +91,7 @@ func (db *Database) get(key string, outPtr interface{}) {
 }
 
 func (db *Database) keys(sid string) []string {
-	keys, err := db.redis.GetKeys(sid + delim)
+	keys, err := db.redis.GetKeys(sid)
 	if err != nil {
 		golog.Debugf("unable to get all redis keys of session '%s': %v", sid, err)
 		return nil
@@ -107,10 +103,10 @@ func (db *Database) keys(sid string) []string {
 // Visit loops through all session keys and values.
 func (db *Database) Visit(sid string, cb func(key string, value interface{})) {
 	keys := db.keys(sid)
-	for _, key := range keys {
+	for _, field := range keys {
 		var value interface{} // new value each time, we don't know what user will do in "cb".
-		db.get(key, &value)
-		cb(key, value)
+		db.get(sid, field, &value)
+		cb(field, value)
 	}
 }
 
@@ -121,7 +117,7 @@ func (db *Database) Len(sid string) (n int) {
 
 // Delete removes a session key value based on its key.
 func (db *Database) Delete(sid string, key string) (deleted bool) {
-	err := db.redis.Delete(makeKey(sid, key))
+	err := db.redis.Delete(sid, key)
 	if err != nil {
 		golog.Error(err)
 	}
@@ -131,20 +127,25 @@ func (db *Database) Delete(sid string, key string) (deleted bool) {
 // Clear removes all session key values but it keeps the session entry.
 func (db *Database) Clear(sid string) {
 	keys := db.keys(sid)
+	var delKeys []string
+	// Delete all keys except `isSet``
 	for _, key := range keys {
-		if err := db.redis.Delete(key); err != nil {
-			golog.Debugf("unable to delete session '%s' value of key: '%s': %v", sid, key, err)
+		if key != "isSet" {
+			delKeys = append(delKeys, key)
 		}
+	}
+
+	if err := db.redis.DeleteMulti(sid, delKeys...); err != nil {
+		golog.Debugf("unable to delete session '%s' value of keys: '%v': %v", sid, keys, err)
 	}
 }
 
 // Release destroys the session, it clears and removes the session entry,
 // session manager will create a new session ID on the next request after this call.
 func (db *Database) Release(sid string) {
-	// clear all $sid-$key.
-	db.Clear(sid)
-	// and remove the $sid.
-	db.redis.Delete(sid)
+	if err := db.redis.DeleteAll(sid); err != nil {
+		golog.Debugf("unable to delete session '%s'", sid)
+	}
 }
 
 // Close terminates the redis connection.

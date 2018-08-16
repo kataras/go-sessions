@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/gomodule/redigo/redis"
@@ -45,18 +44,22 @@ func (r *Service) CloseConnection() error {
 
 // Set sets a key-value to the redis store.
 // The expiration is setted by the MaxAgeSeconds.
-func (r *Service) Set(key string, value interface{}, secondsLifetime int64) (err error) {
+func (r *Service) Set(key, field string, value interface{}, secondsLifetime int64) (err error) {
 	c := r.pool.Get()
 	defer c.Close()
 	if c.Err() != nil {
 		return c.Err()
 	}
 
-	// if has expiration, then use the "EX" to delete the key automatically.
+	_, err = c.Do("HSET", r.Config.Prefix+key, field, value)
+	if err != nil {
+		return err
+	}
+
+	// If lifetime is given then expire the map
 	if secondsLifetime > 0 {
-		_, err = c.Do("SETEX", r.Config.Prefix+key, secondsLifetime, value)
-	} else {
-		_, err = c.Do("SET", r.Config.Prefix+key, value)
+		_, err = c.Do("EXPIRE", r.Config.Prefix+key, secondsLifetime)
+		return err
 	}
 
 	return
@@ -64,21 +67,21 @@ func (r *Service) Set(key string, value interface{}, secondsLifetime int64) (err
 
 // Get returns value, err by its key
 //returns nil and a filled error if something bad happened.
-func (r *Service) Get(key string) (interface{}, error) {
+func (r *Service) Get(key, field string) (interface{}, error) {
 	c := r.pool.Get()
 	defer c.Close()
 	if err := c.Err(); err != nil {
 		return nil, err
 	}
 
-	redisVal, err := c.Do("GET", r.Config.Prefix+key)
-
+	redisVal, err := c.Do("HGET", r.Config.Prefix+key, field)
 	if err != nil {
 		return nil, err
 	}
 	if redisVal == nil {
 		return nil, ErrKeyNotFound
 	}
+
 	return redisVal, nil
 }
 
@@ -108,11 +111,9 @@ func (r *Service) GetAll() (interface{}, error) {
 	}
 
 	redisVal, err := c.Do("SCAN", 0) // 0 -> cursor
-
 	if err != nil {
 		return nil, err
 	}
-
 	if redisVal == nil {
 		return nil, err
 	}
@@ -120,63 +121,46 @@ func (r *Service) GetAll() (interface{}, error) {
 	return redisVal, nil
 }
 
-// GetKeys returns all redis keys using the "SCAN" with MATCH command.
-// Read more at:  https://redis.io/commands/scan#the-match-option.
-func (r *Service) GetKeys(prefix string) ([]string, error) {
+// GetKeys returns all fields in session hash map
+func (r *Service) GetKeys(key string) ([]string, error) {
 	c := r.pool.Get()
 	defer c.Close()
 	if err := c.Err(); err != nil {
 		return nil, err
 	}
 
-	if err := c.Send("SCAN", 0, "MATCH", r.Config.Prefix+prefix+"*", "COUNT", 9999999999); err != nil {
+	redisVal, err := c.Do("HKEYS")
+	if err != nil {
 		return nil, err
 	}
-
-	if err := c.Flush(); err != nil {
-		return nil, err
+	if redisVal == nil {
+		return nil, ErrKeyNotFound
 	}
 
-	reply, err := c.Receive()
-	if err != nil || reply == nil {
-		return nil, err
+	valIfce := redisVal.([]interface{})
+	keys := make([]string, len(valIfce))
+	for i, v := range valIfce {
+		keys[i] = v.(string)
 	}
 
-	// it returns []interface, with two entries, the first one is "0" and the second one is a slice of the keys as []interface{uint8....}.
-
-	if keysInterface, ok := reply.([]interface{}); ok {
-		if len(keysInterface) == 2 {
-			// take the second, it must contain the slice of keys.
-			if keysSliceAsBytes, ok := keysInterface[1].([]interface{}); ok {
-				keys := make([]string, len(keysSliceAsBytes), len(keysSliceAsBytes))
-				for i, k := range keysSliceAsBytes {
-					keys[i] = fmt.Sprintf("%s", k)
-				}
-
-				return keys, nil
-			}
-
-		}
-	}
-
-	return nil, nil
+	return keys, nil
 }
 
 // GetBytes returns value, err by its key
 // you can use utils.Deserialize((.GetBytes("yourkey"),&theobject{})
 //returns nil and a filled error if something wrong happens
-func (r *Service) GetBytes(key string) ([]byte, error) {
+func (r *Service) GetBytes(key, field string) ([]byte, error) {
 	c := r.pool.Get()
 	defer c.Close()
 	if err := c.Err(); err != nil {
 		return nil, err
 	}
 
-	redisVal, err := c.Do("GET", r.Config.Prefix+key)
-
+	redisVal, err := c.Do("HGET", r.Config.Prefix+key, field)
 	if err != nil {
 		return nil, err
 	}
+
 	if redisVal == nil {
 		return nil, ErrKeyNotFound
 	}
@@ -185,7 +169,32 @@ func (r *Service) GetBytes(key string) ([]byte, error) {
 }
 
 // Delete removes redis entry by specific key
-func (r *Service) Delete(key string) error {
+func (r *Service) Delete(key, field string) error {
+	c := r.pool.Get()
+	defer c.Close()
+
+	_, err := c.Do("HDEL", r.Config.Prefix+key, field)
+	return err
+}
+
+// DeleteMulti removes multiple fields from hashmap
+func (r *Service) DeleteMulti(key string, fields ...string) error {
+	c := r.pool.Get()
+	defer c.Close()
+
+	// Make list of args for HDEL
+	args := make([]interface{}, len(fields)+1)
+	args[0] = r.Config.Prefix + key
+	for i := range fields {
+		args[i+1] = fields[i]
+	}
+
+	_, err := c.Do("HDEL", args...)
+	return err
+}
+
+// DeleteAll deletes session hash map
+func (r *Service) DeleteAll(key string) error {
 	c := r.pool.Get()
 	defer c.Close()
 
