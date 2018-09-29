@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
+	"strings"
 	"github.com/gomodule/redigo/redis"
 )
 
@@ -150,7 +150,7 @@ func (r *Service) GetKeys(prefix string) ([]string, error) {
 			if keysSliceAsBytes, ok := keysInterface[1].([]interface{}); ok {
 				keys := make([]string, len(keysSliceAsBytes), len(keysSliceAsBytes))
 				for i, k := range keysSliceAsBytes {
-					keys[i] = fmt.Sprintf("%s", k)
+					keys[i] = strings.TrimLeft(fmt.Sprintf("%s", k), r.Config.Prefix)
 				}
 
 				return keys, nil
