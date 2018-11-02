@@ -13,7 +13,6 @@ import (
 	"github.com/gorilla/securecookie"
 
 	"github.com/iris-contrib/httpexpect"
-	"github.com/kataras/go-serializer"
 )
 
 var errReadBody = errors.New("While trying to read from the request body")
@@ -48,8 +47,7 @@ func getTester(mux *http.ServeMux, t *testing.T) *httpexpect.Expect {
 }
 
 func writeValues(res http.ResponseWriter, values map[string]interface{}) error {
-
-	result, err := serializer.Serialize("application/json", values)
+	result, err := json.Marshal(values)
 	if err != nil {
 		return err
 	}

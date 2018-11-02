@@ -1,13 +1,15 @@
 package badger
 
 import (
-	"fmt"
+	"bytes"
+	"errors"
+	"log"
 	"os"
 	"runtime"
+	"sync/atomic"
 	"time"
 
 	"github.com/kataras/go-sessions"
-	"github.com/kataras/golog"
 
 	"github.com/dgraph-io/badger"
 )
@@ -24,6 +26,8 @@ type Database struct {
 	// it's initialized at `New` or `NewFromDB`.
 	// Can be used to get stats.
 	Service *badger.DB
+
+	closed uint32 // if 1 is closed.
 }
 
 var _ sessions.Database = (*Database)(nil)
@@ -36,7 +40,7 @@ var _ sessions.Database = (*Database)(nil)
 // It will remove any old session files.
 func New(directoryPath string) (*Database, error) {
 	if directoryPath == "" {
-		return nil, fmt.Errorf("directoryPath is missing")
+		return nil, errors.New("directoryPath is missing")
 	}
 
 	lindex := directoryPath[len(directoryPath)-1]
@@ -55,7 +59,7 @@ func New(directoryPath string) (*Database, error) {
 	service, err := badger.Open(opts)
 
 	if err != nil {
-		golog.Errorf("unable to initialize the badger-based session database: %v", err)
+		log.Printf("unable to initialize the badger-based session database: %v\n", err)
 		return nil, err
 	}
 
@@ -76,7 +80,7 @@ func (db *Database) Acquire(sid string, expires time.Duration) sessions.LifeTime
 	txn := db.Service.NewTransaction(true)
 	defer txn.Commit(nil)
 
-	bsid := []byte(sid)
+	bsid := makePrefix(sid)
 	item, err := txn.Get(bsid)
 	if err == nil {
 		// found, return the expiration.
@@ -92,16 +96,26 @@ func (db *Database) Acquire(sid string, expires time.Duration) sessions.LifeTime
 	}
 
 	if err != nil {
-		golog.Error(err)
+		return sessions.LifeTime{Time: sessions.CookieExpireDelete}
 	}
 
 	return sessions.LifeTime{} // session manager will handle the rest.
 }
 
-var delim = byte('*')
+// OnUpdateExpiration not implemented here, yet.
+// Note that this error will not be logged, callers should catch it manually.
+func (db *Database) OnUpdateExpiration(sid string, newExpires time.Duration) error {
+	return sessions.ErrNotImplemented
+}
+
+var delim = byte('_')
+
+func makePrefix(sid string) []byte {
+	return append([]byte(sid), delim)
+}
 
 func makeKey(sid, key string) []byte {
-	return append([]byte(sid), append([]byte(key), delim)...)
+	return append(makePrefix(sid), []byte(key)...)
 }
 
 // Set sets a key value of a specific session.
@@ -109,17 +123,13 @@ func makeKey(sid, key string) []byte {
 func (db *Database) Set(sid string, lifetime sessions.LifeTime, key string, value interface{}, immutable bool) {
 	valueBytes, err := sessions.DefaultTranscoder.Marshal(value)
 	if err != nil {
-		golog.Error(err)
 		return
 	}
 
-	err = db.Service.Update(func(txn *badger.Txn) error {
-		return txn.SetWithTTL(makeKey(sid, key), valueBytes, lifetime.DurationUntilExpiration())
+	db.Service.Update(func(txn *badger.Txn) error {
+		dur := lifetime.DurationUntilExpiration()
+		return txn.SetWithTTL(makeKey(sid, key), valueBytes, dur)
 	})
-
-	if err != nil {
-		golog.Error(err)
-	}
 }
 
 // Get retrieves a session value based on the key.
@@ -129,7 +139,13 @@ func (db *Database) Get(sid string, key string) (value interface{}) {
 		if err != nil {
 			return err
 		}
-		// item.ValueCopy
+
+		// return item.Value(func(valueBytes []byte) {
+		// 	if err := sessions.DefaultTranscoder.Unmarshal(valueBytes, &value); err != nil {
+		// 		golog.Error(err)
+		// 	}
+		// })
+
 		valueBytes, err := item.Value()
 		if err != nil {
 			return err
@@ -139,7 +155,6 @@ func (db *Database) Get(sid string, key string) (value interface{}) {
 	})
 
 	if err != nil && err != badger.ErrKeyNotFound {
-		golog.Error(err)
 		return nil
 	}
 
@@ -148,7 +163,7 @@ func (db *Database) Get(sid string, key string) (value interface{}) {
 
 // Visit loops through all session keys and values.
 func (db *Database) Visit(sid string, cb func(key string, value interface{})) {
-	prefix := append([]byte(sid), delim)
+	prefix := makePrefix(sid)
 
 	txn := db.Service.NewTransaction(false)
 	defer txn.Discard()
@@ -158,19 +173,29 @@ func (db *Database) Visit(sid string, cb func(key string, value interface{})) {
 
 	for iter.Rewind(); iter.ValidForPrefix(prefix); iter.Next() {
 		item := iter.Item()
+		var value interface{}
+
+		// err := item.Value(func(valueBytes []byte) {
+		// 	if err := sessions.DefaultTranscoder.Unmarshal(valueBytes, &value); err != nil {
+		// 		golog.Error(err)
+		// 	}
+		// })
+
+		// if err != nil {
+		// 	golog.Error(err)
+		// 	continue
+		// }
+
 		valueBytes, err := item.Value()
 		if err != nil {
-			golog.Error(err)
 			continue
 		}
 
-		var value interface{}
 		if err = sessions.DefaultTranscoder.Unmarshal(valueBytes, &value); err != nil {
-			golog.Error(err)
 			continue
 		}
 
-		cb(string(item.Key()), value)
+		cb(string(bytes.TrimPrefix(item.Key(), prefix)), value)
 	}
 }
 
@@ -183,7 +208,7 @@ var iterOptionsNoValues = badger.IteratorOptions{
 
 // Len returns the length of the session's entries (keys).
 func (db *Database) Len(sid string) (n int) {
-	prefix := append([]byte(sid), delim)
+	prefix := makePrefix(sid)
 
 	txn := db.Service.NewTransaction(false)
 	iter := txn.NewIterator(iterOptionsNoValues)
@@ -202,7 +227,7 @@ func (db *Database) Delete(sid string, key string) (deleted bool) {
 	txn := db.Service.NewTransaction(true)
 	err := txn.Delete(makeKey(sid, key))
 	if err != nil {
-		golog.Error(err)
+		return
 	}
 	txn.Commit(nil)
 	return err == nil
@@ -210,7 +235,7 @@ func (db *Database) Delete(sid string, key string) (deleted bool) {
 
 // Clear removes all session key values but it keeps the session entry.
 func (db *Database) Clear(sid string) {
-	prefix := append([]byte(sid), delim)
+	prefix := makePrefix(sid)
 
 	txn := db.Service.NewTransaction(true)
 	defer txn.Commit(nil)
@@ -240,9 +265,12 @@ func (db *Database) Close() error {
 }
 
 func closeDB(db *Database) error {
+	if atomic.LoadUint32(&db.closed) > 0 {
+		return nil
+	}
 	err := db.Service.Close()
-	if err != nil {
-		golog.Warnf("closing the badger connection: %v", err)
+	if err == nil {
+		atomic.StoreUint32(&db.closed, 1)
 	}
 	return err
 }

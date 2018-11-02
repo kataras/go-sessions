@@ -1,10 +1,9 @@
 package redis
 
 import (
+	"log"
 	"runtime"
 	"time"
-
-	"github.com/kataras/golog"
 
 	"github.com/kataras/go-sessions"
 	"github.com/kataras/go-sessions/sessiondb/redis/service"
@@ -23,7 +22,7 @@ func New(cfg ...service.Config) *Database {
 	db.redis.Connect()
 	_, err := db.redis.PingPong()
 	if err != nil {
-		golog.Debugf("error connecting to redis: %v", err)
+		log.Fatal(err)
 		return nil
 	}
 	runtime.SetFinalizer(db, closeDB)
@@ -42,7 +41,7 @@ func (db *Database) Acquire(sid string, expires time.Duration) sessions.LifeTime
 	if !found {
 		// not found, create an entry with ttl and return an empty lifetime, session manager will do its job.
 		if err := db.redis.Set(sid, sid, int64(expires.Seconds())); err != nil {
-			golog.Debug(err)
+			return sessions.LifeTime{Time: sessions.CookieExpireDelete}
 		}
 
 		return sessions.LifeTime{} // session manager will handle the rest.
@@ -56,6 +55,12 @@ func (db *Database) Acquire(sid string, expires time.Duration) sessions.LifeTime
 	return sessions.LifeTime{Time: time.Now().Add(time.Duration(seconds) * time.Second)}
 }
 
+// OnUpdateExpiration will re-set the database's session's entry ttl.
+// https://redis.io/commands/expire#refreshing-expires
+func (db *Database) OnUpdateExpiration(sid string, newExpires time.Duration) error {
+	return db.redis.UpdateTTLMany(sid, int64(newExpires.Seconds()))
+}
+
 const delim = "_"
 
 func makeKey(sid, key string) string {
@@ -67,13 +72,10 @@ func makeKey(sid, key string) string {
 func (db *Database) Set(sid string, lifetime sessions.LifeTime, key string, value interface{}, immutable bool) {
 	valueBytes, err := sessions.DefaultTranscoder.Marshal(value)
 	if err != nil {
-		golog.Error(err)
 		return
 	}
 
-	if err = db.redis.Set(makeKey(sid, key), valueBytes, int64(lifetime.DurationUntilExpiration().Seconds())); err != nil {
-		golog.Debug(err)
-	}
+	db.redis.Set(makeKey(sid, key), valueBytes, int64(lifetime.DurationUntilExpiration().Seconds()))
 }
 
 // Get retrieves a session value based on the key.
@@ -89,15 +91,12 @@ func (db *Database) get(key string, outPtr interface{}) {
 		return
 	}
 
-	if err = sessions.DefaultTranscoder.Unmarshal(data.([]byte), outPtr); err != nil {
-		golog.Debugf("unable to unmarshal value of key: '%s': %v", key, err)
-	}
+	sessions.DefaultTranscoder.Unmarshal(data.([]byte), outPtr)
 }
 
 func (db *Database) keys(sid string) []string {
 	keys, err := db.redis.GetKeys(sid + delim)
 	if err != nil {
-		golog.Debugf("unable to get all redis keys of session '%s': %v", sid, err)
 		return nil
 	}
 
@@ -121,20 +120,14 @@ func (db *Database) Len(sid string) (n int) {
 
 // Delete removes a session key value based on its key.
 func (db *Database) Delete(sid string, key string) (deleted bool) {
-	err := db.redis.Delete(makeKey(sid, key))
-	if err != nil {
-		golog.Error(err)
-	}
-	return err == nil
+	return db.redis.Delete(makeKey(sid, key)) == nil
 }
 
 // Clear removes all session key values but it keeps the session entry.
 func (db *Database) Clear(sid string) {
 	keys := db.keys(sid)
 	for _, key := range keys {
-		if err := db.redis.Delete(key); err != nil {
-			golog.Debugf("unable to delete session '%s' value of key: '%s': %v", sid, key, err)
-		}
+		db.redis.Delete(key)
 	}
 }
 

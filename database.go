@@ -1,9 +1,14 @@
 package sessions
 
 import (
+	"errors"
 	"sync"
 	"time"
 )
+
+// ErrNotImplemented is returned when a particular feature is not yet implemented yet.
+// It can be matched directly, i.e: `isNotImplementedError := sessions.ErrNotImplemented.Equal(err)`.
+var ErrNotImplemented = errors.New("not implemented yet")
 
 // Database is the interface which all session databases should implement
 // By design it doesn't support any type of cookie session like other frameworks.
@@ -18,6 +23,15 @@ type Database interface {
 	// Acquire receives a session's lifetime from the database,
 	// if the return value is LifeTime{} then the session manager sets the life time based on the expiration duration lives in configuration.
 	Acquire(sid string, expires time.Duration) LifeTime
+	// OnUpdateExpiration should re-set the expiration (ttl) of the session entry inside the database,
+	// it is fired on `ShiftExpiration` and `UpdateExpiration`.
+	// If the database does not support change of ttl then the session entry will be cloned to another one
+	// and the old one will be removed, it depends on the chosen database storage.
+	//
+	// Check of error is required, if error returned then the rest session's keys are not proceed.
+	//
+	// If a database does not support this feature then an `ErrNotImplemented` will be returned instead.
+	OnUpdateExpiration(sid string, newExpires time.Duration) error
 	// Set sets a key value of a specific session.
 	// The "immutable" input argument depends on the store, it may not implement it at all.
 	Set(sid string, lifetime LifeTime, key string, value interface{}, immutable bool)
@@ -52,6 +66,9 @@ func (s *mem) Acquire(sid string, expires time.Duration) LifeTime {
 	return LifeTime{}
 }
 
+// Do nothing, the `LifeTime` of the Session will be managed by the callers automatically on memory-based storage.
+func (s *mem) OnUpdateExpiration(string, time.Duration) error { return nil }
+
 // immutable depends on the store, it may not implement it at all.
 func (s *mem) Set(sid string, lifetime LifeTime, key string, value interface{}, immutable bool) {
 	s.mu.RLock()
@@ -60,7 +77,11 @@ func (s *mem) Set(sid string, lifetime LifeTime, key string, value interface{}, 
 }
 
 func (s *mem) Get(sid string, key string) interface{} {
-	return s.values[sid].Get(key)
+	s.mu.RLock()
+	v := s.values[sid].Get(key)
+	s.mu.RUnlock()
+
+	return v
 }
 
 func (s *mem) Visit(sid string, cb func(key string, value interface{})) {
@@ -68,7 +89,11 @@ func (s *mem) Visit(sid string, cb func(key string, value interface{})) {
 }
 
 func (s *mem) Len(sid string) int {
-	return s.values[sid].Len()
+	s.mu.RLock()
+	n := s.values[sid].Len()
+	s.mu.RUnlock()
+
+	return n
 }
 
 func (s *mem) Delete(sid string, key string) (deleted bool) {
@@ -79,9 +104,9 @@ func (s *mem) Delete(sid string, key string) (deleted bool) {
 }
 
 func (s *mem) Clear(sid string) {
-	s.mu.RLock()
+	s.mu.Lock()
 	s.values[sid].Reset()
-	s.mu.RUnlock()
+	s.mu.Unlock()
 }
 
 func (s *mem) Release(sid string) {

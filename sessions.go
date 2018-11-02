@@ -35,7 +35,7 @@ import (
 
 const (
 	// Version current semantic version string of the go-sessions package.
-	Version = "3.0.0"
+	Version = "3.1.0"
 )
 
 // A Sessions manager should be responsible to Start a sesion, based
@@ -253,14 +253,21 @@ func UpdateExpiration(w http.ResponseWriter, r *http.Request, expires time.Durat
 
 // UpdateExpiration change expire date of a session to a new date
 // by using timeout value passed by `expires` receiver.
-func (s *Sessions) UpdateExpiration(w http.ResponseWriter, r *http.Request, expires time.Duration) {
+// It will return `ErrNotFound` when trying to update expiration on a non-existence or not valid session entry.
+// It will return `ErrNotImplemented` if a database is used and it does not support this feature, yet.
+func (s *Sessions) UpdateExpiration(w http.ResponseWriter, r *http.Request, expires time.Duration) error {
 	cookieValue := s.decodeCookieValue(GetCookie(r, s.config.Cookie))
-
-	if cookieValue != "" {
-		if s.provider.UpdateExpiration(cookieValue, expires) {
-			s.updateCookie(w, r, cookieValue, expires)
-		}
+	if cookieValue == "" {
+		return ErrNotFound
 	}
+
+	// we should also allow it to expire when the browser closed
+	err := s.provider.UpdateExpiration(cookieValue, expires)
+	if err == nil || expires == -1 {
+		s.updateCookie(w, r, cookieValue, expires)
+	}
+
+	return err
 }
 
 // UpdateExpirationFasthttp change expire date of a session to a new date
@@ -271,14 +278,19 @@ func UpdateExpirationFasthttp(ctx *fasthttp.RequestCtx, expires time.Duration) {
 
 // UpdateExpirationFasthttp change expire date of a session to a new date
 // by using timeout value passed by `expires` receiver.
-func (s *Sessions) UpdateExpirationFasthttp(ctx *fasthttp.RequestCtx, expires time.Duration) {
+func (s *Sessions) UpdateExpirationFasthttp(ctx *fasthttp.RequestCtx, expires time.Duration) error {
 	cookieValue := s.decodeCookieValue(GetCookieFasthttp(ctx, s.config.Cookie))
-
-	if cookieValue != "" {
-		if s.provider.UpdateExpiration(cookieValue, expires) {
-			s.updateCookieFasthttp(ctx, cookieValue, expires)
-		}
+	if cookieValue == "" {
+		return ErrNotFound
 	}
+
+	// we should also allow it to expire when the browser closed
+	err := s.provider.UpdateExpiration(cookieValue, expires)
+	if err == nil || expires == -1 {
+		s.updateCookieFasthttp(ctx, cookieValue, expires)
+	}
+
+	return err
 }
 
 func (s *Sessions) destroy(cookieValue string) {
@@ -288,6 +300,7 @@ func (s *Sessions) destroy(cookieValue string) {
 	if cookieValue == "" { // nothing to destroy
 		return
 	}
+
 	s.provider.Destroy(cookieValue)
 }
 
