@@ -10,7 +10,7 @@ import (
 
 	"github.com/kataras/go-sessions/v3"
 
-	bolt "github.com/etcd-io/bbolt"
+	bolt "go.etcd.io/bbolt"
 )
 
 // DefaultFileMode used as the default database's "fileMode"

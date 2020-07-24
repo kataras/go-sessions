@@ -52,9 +52,7 @@ func New(directoryPath string) (*Database, error) {
 		return nil, err
 	}
 
-	opts := badger.DefaultOptions
-	opts.Dir = directoryPath
-	opts.ValueDir = directoryPath
+	opts := badger.DefaultOptions(directoryPath)
 
 	service, err := badger.Open(opts)
 
@@ -78,7 +76,7 @@ func NewFromDB(service *badger.DB) *Database {
 // if the return value is LifeTime{} then the session manager sets the life time based on the expiration duration lives in configuration.
 func (db *Database) Acquire(sid string, expires time.Duration) sessions.LifeTime {
 	txn := db.Service.NewTransaction(true)
-	defer txn.Commit(nil)
+	defer txn.Commit()
 
 	bsid := makePrefix(sid)
 	item, err := txn.Get(bsid)
@@ -91,7 +89,7 @@ func (db *Database) Acquire(sid string, expires time.Duration) sessions.LifeTime
 	if err != nil {
 		if err == badger.ErrKeyNotFound {
 			// create it and set the expiration, we don't care about the value there.
-			err = txn.SetWithTTL(bsid, bsid, expires)
+			err = txn.SetEntry(badger.NewEntry(bsid, bsid).WithTTL(expires))
 		}
 	}
 
@@ -128,7 +126,7 @@ func (db *Database) Set(sid string, lifetime sessions.LifeTime, key string, valu
 
 	db.Service.Update(func(txn *badger.Txn) error {
 		dur := lifetime.DurationUntilExpiration()
-		return txn.SetWithTTL(makeKey(sid, key), valueBytes, dur)
+		return txn.SetEntry(badger.NewEntry(makeKey(sid, key), valueBytes).WithTTL(dur))
 	})
 }
 
@@ -140,18 +138,9 @@ func (db *Database) Get(sid string, key string) (value interface{}) {
 			return err
 		}
 
-		// return item.Value(func(valueBytes []byte) {
-		// 	if err := sessions.DefaultTranscoder.Unmarshal(valueBytes, &value); err != nil {
-		// 		golog.Error(err)
-		// 	}
-		// })
-
-		valueBytes, err := item.Value()
-		if err != nil {
-			return err
-		}
-
-		return sessions.DefaultTranscoder.Unmarshal(valueBytes, &value)
+		return item.Value(func(valueBytes []byte) error {
+			return sessions.DefaultTranscoder.Unmarshal(valueBytes, &value)
+		})
 	})
 
 	if err != nil && err != badger.ErrKeyNotFound {
@@ -159,6 +148,12 @@ func (db *Database) Get(sid string, key string) (value interface{}) {
 	}
 
 	return
+}
+
+// validSessionItem reports whether the current iterator's item key
+// is a value of the session id "prefix".
+func validSessionItem(key, prefix []byte) bool {
+	return len(key) > len(prefix) && bytes.Equal(key[0:len(prefix)], prefix)
 }
 
 // Visit loops through all session keys and values.
@@ -171,31 +166,28 @@ func (db *Database) Visit(sid string, cb func(key string, value interface{})) {
 	iter := txn.NewIterator(badger.DefaultIteratorOptions)
 	defer iter.Close()
 
-	for iter.Rewind(); iter.ValidForPrefix(prefix); iter.Next() {
+	for iter.Rewind(); ; iter.Next() {
+		if !iter.Valid() {
+			break
+		}
+
 		item := iter.Item()
+		key := item.Key()
+		if !validSessionItem(key, prefix) {
+			continue
+		}
+
 		var value interface{}
 
-		// err := item.Value(func(valueBytes []byte) {
-		// 	if err := sessions.DefaultTranscoder.Unmarshal(valueBytes, &value); err != nil {
-		// 		golog.Error(err)
-		// 	}
-		// })
+		err := item.Value(func(valueBytes []byte) error {
+			return sessions.DefaultTranscoder.Unmarshal(valueBytes, &value)
+		})
 
-		// if err != nil {
-		// 	golog.Error(err)
-		// 	continue
-		// }
-
-		valueBytes, err := item.Value()
 		if err != nil {
 			continue
 		}
 
-		if err = sessions.DefaultTranscoder.Unmarshal(valueBytes, &value); err != nil {
-			continue
-		}
-
-		cb(string(bytes.TrimPrefix(item.Key(), prefix)), value)
+		cb(string(bytes.TrimPrefix(key, prefix)), value)
 	}
 }
 
@@ -229,7 +221,7 @@ func (db *Database) Delete(sid string, key string) (deleted bool) {
 	if err != nil {
 		return
 	}
-	txn.Commit(nil)
+	txn.Commit()
 	return err == nil
 }
 
@@ -238,7 +230,7 @@ func (db *Database) Clear(sid string) {
 	prefix := makePrefix(sid)
 
 	txn := db.Service.NewTransaction(true)
-	defer txn.Commit(nil)
+	defer txn.Commit()
 
 	iter := txn.NewIterator(iterOptionsNoValues)
 	defer iter.Close()
@@ -256,7 +248,7 @@ func (db *Database) Release(sid string) {
 	// and remove the $sid.
 	txn := db.Service.NewTransaction(true)
 	txn.Delete([]byte(sid))
-	txn.Commit(nil)
+	txn.Commit()
 }
 
 // Close shutdowns the badger connection.
