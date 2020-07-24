@@ -50,10 +50,22 @@ sess.
 Installation
 ------------
 
-The only requirement is the [Go Programming Language](https://golang.org/dl), at least v1.7.
+The only requirement is the [Go Programming Language](https://golang.org/dl), at least 1.14.
 
 ```bash
-$ go get -u github.com/kataras/go-sessions
+$ go get github.com/kataras/go-sessions/v3
+```
+
+**go.mod**
+
+```sh
+module your_app
+
+go 1.14
+
+require (
+	github.com/kataras/go-sessions/v3 v3.2.0
+)
 ```
 
 Features

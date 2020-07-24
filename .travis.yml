@@ -3,10 +3,11 @@ os:
   - linux
   - osx
 go:
-  - 1.9.x
-  - 1.10.x
-  - 1.11.x
-go_import_path: github.com/kataras/go-sessions
+  - 1.14.x
+go_import_path: github.com/kataras/go-sessions/v3
+env:
+ global:
+   - GO111MODULE=on
 install:
   - go get -t ./...
 script:
