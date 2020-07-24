@@ -10,7 +10,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/securecookie"
-	"github.com/kataras/go-sessions"
+	"github.com/kataras/go-sessions/v3"
 )
 
 func main() {

@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/kataras/go-sessions"
+	"github.com/kataras/go-sessions/v3"
 
 	"github.com/dgraph-io/badger"
 )

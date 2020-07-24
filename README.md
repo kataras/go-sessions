@@ -5,7 +5,7 @@
 
  <a href="https://travis-ci.org/kataras/go-sessions"><img src="https://img.shields.io/travis/kataras/go-sessions.svg?style=flat-square" alt="Build Status"></a>
  <a href="https://github.com/kataras/go-sessions/blob/master/LICENSE"><img src="https://img.shields.io/badge/%20license-MIT%20%20License%20-E91E63.svg?style=flat-square" alt="License"></a>
- <a href="https://github.com/kataras/go-sessions/releases"><img src="https://img.shields.io/badge/%20release%20-%20v3.1.0-blue.svg?style=flat-square" alt="Releases"></a>
+ <a href="https://github.com/kataras/go-sessions/releases"><img src="https://img.shields.io/badge/%20release%20-%20v3.2.0-blue.svg?style=flat-square" alt="Releases"></a>
  <a href="#documentation"><img src="https://img.shields.io/badge/%20docs-reference-5272B4.svg?style=flat-square" alt="Read me docs"></a>
  <a href="https://kataras.rocket.chat/channel/go-sessions"><img src="https://img.shields.io/badge/%20community-chat-00BCD4.svg?style=flat-square" alt="Build Status"></a>
  <a href="https://golang.org"><img src="https://img.shields.io/badge/powered_by-Go-3362c2.svg?style=flat-square" alt="Built with GoLang"></a>
@@ -21,7 +21,7 @@ Quick view
 -----------
 
 ```go
-import "github.com/kataras/go-sessions"
+import "github.com/kataras/go-sessions/v3"
 
 sess := sessions.Start(http.ResponseWriter, *http.Request)
 sess.
@@ -239,7 +239,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/kataras/go-sessions"
+	"github.com/kataras/go-sessions/v3"
 )
 
 type businessModel struct {
@@ -403,7 +403,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/kataras/go-sessions"
+	"github.com/kataras/go-sessions/v3"
 	"github.com/valyala/fasthttp"
 )
 
@@ -477,7 +477,7 @@ If you'd like to discuss this package, or ask questions about it, feel free to
 Versioning
 ------------
 
-Current: **v3.1.0**
+Current: **v3.2.0**
 
 Read more about Semantic Versioning 2.0.0
 
@@ -506,7 +506,7 @@ License can be found [here](LICENSE).
 [Travis]: http://travis-ci.org/kataras/go-sessions
 [License Widget]: https://img.shields.io/badge/license-MIT%20%20License%20-E91E63.svg?style=flat-square
 [License]: https://github.com/kataras/go-sessions/blob/master/LICENSE
-[Release Widget]: https://img.shields.io/badge/release-v3.1.0-blue.svg?style=flat-square
+[Release Widget]: https://img.shields.io/badge/release-v3.2.0-blue.svg?style=flat-square
 [Release]: https://github.com/kataras/go-sessions/releases
 [Chat Widget]: https://img.shields.io/badge/community-chat-00BCD4.svg?style=flat-square
 [Chat]: https://kataras.rocket.chat/channel/go-sessions

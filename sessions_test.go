@@ -8,11 +8,12 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
 	// developers can use any library to add a custom cookie encoder/decoder.
 	// At this test code we use the gorilla's securecookie library:
-	"github.com/gorilla/securecookie"
+	"github.com/gavv/httpexpect"
 
-	"github.com/iris-contrib/httpexpect"
+	"github.com/gorilla/securecookie"
 )
 
 var errReadBody = errors.New("While trying to read from the request body")

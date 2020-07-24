@@ -3,7 +3,7 @@ package main
 import (
 	"net/http"
 
-	"github.com/kataras/go-sessions"
+	"github.com/kataras/go-sessions/v3"
 )
 
 var (
