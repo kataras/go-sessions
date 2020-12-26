@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/kataras/go-sessions/v3"
@@ -12,8 +13,10 @@ import (
 func main() {
 	// replace with your server settings:
 	conn, _ := grpc.Dial("127.0.0.1:9080", grpc.WithInsecure())
-
-	db := dgraph.NewFromDB(conn) // to use badger just use the sessiondb/badger#New func.
+	db, err := dgraph.NewFromDB(conn) // to use badger just use the sessiondb/badger#New func.
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	defer db.Close()
 
@@ -66,5 +69,5 @@ func main() {
 		sess.ShiftExpiration(w, r)
 	})
 
-	http.ListenAndServe(":8080", app)
+	http.ListenAndServe(":8081", app)
 }

@@ -1,10 +1,9 @@
 package main
 
 import (
-	"context"
 	"fmt"
+	"log"
 	"net/http"
-	"os"
 
 	"github.com/kataras/go-sessions/v3"
 	"github.com/kataras/go-sessions/v3/sessiondb/mongo"
@@ -14,18 +13,18 @@ import (
 func main() {
 	// replace with your running mongo' server settings:
 	cred := options.Credential{
-		AuthSource: "YourAuthSource",
-		Username:   "YourUsename",
-		Password:   "YourPassword",
+		AuthSource: "admin",
+		Username:   "user",
+		Password:   "password",
 	}
-	clientOptions := options.Client().ApplyURI(os.Getenv("MONGO_DB_URI")).SetAuth(cred)
-	ctx := context.Background()
-	client, _ := mongo.Connect(ctx, clientOpts)
-	collection := client.Database("go-sessions").Collection("session")
 
-	db := mongo.NewFromDB(collection) // to use badger just use the sessiondb/badger#New func.
+	clientOpts := options.Client().ApplyURI("mongodb://127.0.0.1:27017").SetAuth(cred)
+	db, err := mongo.New(clientOpts, "sessions")
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	defer db.Close()
+	// defer db.Close()
 
 	sess := sessions.New(sessions.Config{Cookie: "sessionscookieid"})
 
@@ -76,5 +75,8 @@ func main() {
 		sess.ShiftExpiration(w, r)
 	})
 
-	http.ListenAndServe(":8080", app)
+	log.Fatal(http.ListenAndServe(":8081", app))
+
+	// block := make(chan bool)
+	// <-block
 }

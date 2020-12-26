@@ -2,6 +2,7 @@ package dgraph
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"time"
@@ -91,13 +92,62 @@ func NewFromDB(conn *grpc.ClientConn) (*Database, error) {
 // Acquire receives a session's lifetime from the database,
 // if the return value is LifeTime{} then the session manager sets the life time based on the expiration duration lives in configuration.
 func (db *Database) Acquire(sid string, expires time.Duration) sessions.LifeTime {
+	ctx := context.Background()
+
+	query := `{
+	q(func: eq(skey, "` + sid + `")) @filter(eq(sid, "` + sid + `")) {
+	  svalue
+	}
+}`
+
+	response, _ := db.dg.NewTxn().Query(ctx, query)
+
+	var r struct {
+		Session []struct {
+			// Key   string `json:"key"`
+			Value string `json:"svalue"`
+		} `json:"q"`
+	}
+
+	json.Unmarshal(response.Json, &r)
+
+	// not found, create an entry and return an empty lifetime, session manager will do its job.
+	if len(r.Session) == 0 {
+		ctx := context.Background()
+
+		expirationTime := time.Now().Add(expires)
+		timeBytes, _ := sessions.DefaultTranscoder.Marshal(expirationTime)
+		timeBase := base64.StdEncoding.EncodeToString(timeBytes)
+
+		mutation := `
+		uid(v) <sid> "` + sid + `" .
+		uid(v) <skey> "` + sid + `" .
+		uid(v) <svalue> "` + timeBase + `" . 
+		uid(v) <dgraph.type> "SessionEntry" . 
+		`
+
+		req := &api.Request{
+			Mutations: []*api.Mutation{
+				{
+					SetNquads: []byte(mutation),
+				},
+			},
+			CommitNow: true,
+		}
+
+		_, err := db.dg.NewTxn().Do(ctx, req)
+		if err != nil {
+			return sessions.LifeTime{}
+		}
+
+		return sessions.LifeTime{Time: sessions.CookieExpireDelete}
+	}
+
 	// found, return the expiration.
-
-	// not found, create an entry with ttl and return an empty lifetime, session manager will do its job.
-
-	// create it and set the expiration, we don't care about the value there.
-
-	return sessions.LifeTime{} // session manager will handle the rest.
+	var expirationTime time.Time
+	valueBase, _ := base64.StdEncoding.DecodeString(r.Session[0].Value)
+	sessions.DefaultTranscoder.Unmarshal(valueBase, &expirationTime)
+	return sessions.LifeTime{Time: expirationTime}
 }
 
 // OnUpdateExpiration not implemented here, yet.
@@ -114,8 +164,9 @@ func (db *Database) Set(sid string, lifetime sessions.LifeTime, key string, valu
 		return
 	}
 
+	// convert []byte slice to base64 string
+	valueBase := base64.StdEncoding.EncodeToString(valueBytes)
 	ctx := context.Background()
-
 	query := `
 	{
 		  q(func: eq(skey, "` + key + `")) @filter(eq(sid, "` + sid + `"))  {
@@ -127,7 +178,7 @@ func (db *Database) Set(sid string, lifetime sessions.LifeTime, key string, valu
 	mutation := `
 	uid(v) <sid> "` + sid + `" .
 	uid(v) <skey> "` + key + `" .
-	uid(v) <svalue> "` + string(valueBytes) + `" . 
+	uid(v) <svalue> "` + valueBase + `" . 
 	uid(v) <dgraph.type> "SessionEntry" . 
 	`
 
@@ -141,10 +192,8 @@ func (db *Database) Set(sid string, lifetime sessions.LifeTime, key string, valu
 		CommitNow: true,
 	}
 
-	_, err = db.dg.NewTxn().Do(ctx, req)
-
+	db.dg.NewTxn().Do(ctx, req)
 	return
-
 }
 
 // Get retrieves a session value based on the key.
@@ -179,7 +228,9 @@ func (db *Database) Get(sid string, key string) (value interface{}) {
 		return nil
 	}
 
-	return sessions.DefaultTranscoder.Unmarshal([]byte(r.Session[0].Value), &value)
+	valueBase, _ := base64.StdEncoding.DecodeString(r.Session[0].Value)
+	sessions.DefaultTranscoder.Unmarshal(valueBase, &value)
+	return
 }
 
 // Visit loops through all session keys and values.
@@ -217,7 +268,8 @@ func (db *Database) Visit(sid string, cb func(key string, value interface{})) {
 
 	for _, session := range r.Session {
 		var value interface{}
-		if err := sessions.DefaultTranscoder.Unmarshal([]byte(session.Value), &value); err != nil {
+		valueBase, _ := base64.StdEncoding.DecodeString(session.Value)
+		if err := sessions.DefaultTranscoder.Unmarshal(valueBase, &value); err != nil {
 			return
 		}
 

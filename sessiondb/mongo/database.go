@@ -2,6 +2,7 @@ package mongo
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"log"
 	"time"
@@ -50,9 +51,10 @@ func (db *Database) Acquire(sid string, expires time.Duration) sessions.LifeTime
 	if err := res.Err(); err != nil {
 		expirationTime := time.Now().Add(expires)
 		timeBytes, _ := sessions.DefaultTranscoder.Marshal(expirationTime)
+		timeBase := base64.StdEncoding.EncodeToString(timeBytes)
 		db.mongo.Collection(sid).InsertOne(
 			context.TODO(),
-			bson.D{{"$set", bson.D{{"key", sid}, {"value", timeBytes}}}},
+			bson.D{{"$set", bson.D{{"key", sid}, {"value", timeBase}}}},
 		)
 
 		return sessions.LifeTime{Time: sessions.CookieExpireDelete}
@@ -63,7 +65,8 @@ func (db *Database) Acquire(sid string, expires time.Duration) sessions.LifeTime
 	result.Validate()
 	val := result.Lookup("value")
 	var expirationTime time.Time
-	sessions.DefaultTranscoder.Unmarshal(val.Value, &expirationTime)
+	valueBase, _ := base64.StdEncoding.DecodeString(val.StringValue())
+	sessions.DefaultTranscoder.Unmarshal(valueBase, &expirationTime)
 	return sessions.LifeTime{Time: expirationTime}
 }
 
@@ -81,22 +84,25 @@ func (db *Database) Set(sid string, lifetime sessions.LifeTime, key string, valu
 		return
 	}
 
+	// convert []byte slice to base64 string
+	valueBase := base64.StdEncoding.EncodeToString(valueBytes)
+
 	db.mongo.Collection(sid).UpdateOne(
 		context.Background(),
 		// filter
 		bson.D{{"key", key}},
 		// update
-		bson.D{{"$set", bson.D{{"key", key}, {"value", valueBytes}}}},
+		bson.D{{"$set", bson.D{{"key", key}, {"value", valueBase}}}},
 		// options
 		options.Update().SetUpsert(true),
 	)
 
+	// TTL
 	// indexOpts := options.CreateIndexes().SetMaxTime(10 * time.Second)
 	// dur := lifetime.DurationUntilExpiration()
 	// index := mongo.IndexModel{
 	// 	Keys:    bson.D{{Key: "expireAt", Value: 1}},
 	// 	Options: options.Index().SetExpireAfterSeconds(int32(dur))}
-
 	// db.mongo.Collection(sid).Indexes().CreateOne(context.Background(), index, indexOpts)
 }
 
@@ -105,6 +111,7 @@ func (db *Database) Get(sid string, key string) (value interface{}) {
 	var result bson.Raw
 	ctx := context.TODO()
 	res := db.mongo.Collection(sid).FindOne(ctx, bson.D{{"key", key}})
+
 	err := res.Decode(&result)
 	if err != nil {
 		return
@@ -116,7 +123,9 @@ func (db *Database) Get(sid string, key string) (value interface{}) {
 	}
 
 	val := result.Lookup("value")
-	return sessions.DefaultTranscoder.Unmarshal(val.Value, &value)
+	valueBase, _ := base64.StdEncoding.DecodeString(val.StringValue())
+	sessions.DefaultTranscoder.Unmarshal(valueBase, &value)
+	return
 }
 
 // Visit loops through all session keys and values.
@@ -136,7 +145,8 @@ func (db *Database) Visit(sid string, cb func(key string, value interface{})) {
 		k := result.Lookup("key")
 		v := result.Lookup("value")
 		var val interface{}
-		sessions.DefaultTranscoder.Unmarshal(v.Value, &val)
+		valueBase, _ := base64.StdEncoding.DecodeString(v.StringValue())
+		sessions.DefaultTranscoder.Unmarshal(valueBase, &val)
 		cb(k.String(), val)
 	}
 	if err := res.Err(); err != nil {
