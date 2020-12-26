@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-var errPathMissing = errors.New("path is required")
+var errPathMissing = errors.New("gRPC url is required")
 
 // Database the BoltDB(file-based) session storage.
 type Database struct {
@@ -70,12 +70,12 @@ func NewFromDB(conn *grpc.ClientConn) (*Database, error) {
 		op := &api.Operation{}
 		op.Schema = `
 	sid: string @index(hash) . 
-	key: string @index(hash) . 
-	value: string . 
+	skey: string @index(hash) . 
+	svalue: string . 
 	type SessionEntry {
 		sid
-		key
-		value
+		skey
+		svalue
 	}
 	`
 		err := dg.Alter(ctx, op)
@@ -118,7 +118,7 @@ func (db *Database) Set(sid string, lifetime sessions.LifeTime, key string, valu
 
 	query := `
 	{
-		  q(func: eq(key, "` + key + `")) @filter(eq(sid, "` + sid + `"))  {
+		  q(func: eq(skey, "` + key + `")) @filter(eq(sid, "` + sid + `"))  {
 			v as uid
 		  }
 	}
@@ -126,8 +126,8 @@ func (db *Database) Set(sid string, lifetime sessions.LifeTime, key string, valu
 
 	mutation := `
 	uid(v) <sid> "` + sid + `" .
-	uid(v) <key> "` + key + `" .
-	uid(v) <value> "` + string(valueBytes) + `" . 
+	uid(v) <skey> "` + key + `" .
+	uid(v) <svalue> "` + string(valueBytes) + `" . 
 	uid(v) <dgraph.type> "SessionEntry" . 
 	`
 
@@ -152,8 +152,8 @@ func (db *Database) Get(sid string, key string) (value interface{}) {
 	ctx := context.Background()
 
 	query := `{
-	q(func: eq(key, "` + key + `")) @filter(eq(sid, "` + sid + `")) {
-	  value
+	q(func: eq(skey, "` + key + `")) @filter(eq(sid, "` + sid + `")) {
+	  svalue
 	}
 }`
 
@@ -165,7 +165,7 @@ func (db *Database) Get(sid string, key string) (value interface{}) {
 	var r struct {
 		Session []struct {
 			// Key   string `json:"key"`
-			Value string `json:"value"`
+			Value string `json:"svalue"`
 		} `json:"q"`
 	}
 
@@ -188,8 +188,8 @@ func (db *Database) Visit(sid string, cb func(key string, value interface{})) {
 
 	query := `{
 	q(func: eq(sid, "` + sid + `")) {
-	  key
-	  value
+	  skey
+	  svalue
 	}
 }`
 
@@ -200,8 +200,8 @@ func (db *Database) Visit(sid string, cb func(key string, value interface{})) {
 
 	var r struct {
 		Session []struct {
-			Key   string `json:"key"`
-			Value string `json:"value"`
+			Key   string `json:"skey"`
+			Value string `json:"svalue"`
 		} `json:"q"`
 	}
 
@@ -292,8 +292,8 @@ func (db *Database) Clear(sid string) {
 	query := `{
 	q(func: eq(sid, "` + sid + `")) {
 	  uid
-	  key
-	  value
+	  skey
+	  svalue
 	}
 }`
 
@@ -305,8 +305,8 @@ func (db *Database) Clear(sid string) {
 	var r struct {
 		Entries []struct {
 			UID   string `json:"uid"`
-			Key   string `json:"key"`
-			Value string `json:"value"`
+			Key   string `json:"skey"`
+			Value string `json:"svalue"`
 			Sid   string `json:"sid"`
 		} `json:"q"`
 	}

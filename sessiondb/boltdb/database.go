@@ -244,7 +244,7 @@ func (db *Database) Set(sid string, lifetime sessions.LifeTime, key string, valu
 		}
 
 		// Author's notes:
-		// expiration is handlded by the session manager for the whole session, so the `db.Destroy` will be called when and if needed.
+		// expiration is handled by the session manager for the whole session, so the `db.Destroy` will be called when and if needed.
 		// Therefore we don't have to implement a TTL here, but we need a `db.Cleanup`, as we did previously, method to delete any expired if server restarted
 		// (badger does not need a `Cleanup` because we set the TTL based on the lifetime.DurationUntilExpiration()).
 		return b.Put(makeKey(key), valueBytes)
