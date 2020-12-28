@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/kataras/go-sessions/v3"
+	"github.com/LycEcho/go-sessions/v3"
 
 	bolt "go.etcd.io/bbolt"
 )

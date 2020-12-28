@@ -35,7 +35,7 @@ import (
 
 const (
 	// Version current semantic version string of the go-sessions package.
-	Version = "3.3.0"
+	Version = "3.3.4"
 )
 
 // A Sessions manager should be responsible to Start a sesion, based
@@ -159,6 +159,24 @@ func (s *Sessions) Start(w http.ResponseWriter, r *http.Request) *Session {
 	sess := s.provider.Read(cookieValue, s.config.Expires)
 
 	return sess
+}
+
+func DefaultStart() *Session{
+	return Default.DefaultStart()
+}
+func (s *Sessions) DefaultStart() *Session {
+
+
+	//cookieValue := s.decodeCookieValue(GetCookie(r, s.config.Cookie))
+	sid := s.config.SessionIDGenerator()
+
+	sess := s.provider.Init(sid, s.config.Expires)
+	sess.isNew = s.provider.db.Len(sid) == 0
+
+	//s.updateCookie(w, r, sid, s.config.Expires)
+
+	return sess
+
 }
 
 func (s *Sessions) updateCookieFasthttp(ctx *fasthttp.RequestCtx, sid string, expires time.Duration) {
