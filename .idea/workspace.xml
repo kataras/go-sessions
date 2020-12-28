@@ -1,7 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="634331c8-8295-4369-9da2-4355f7f1973c" name="Default Changelist" comment="" />
+    <list default="true" id="634331c8-8295-4369-9da2-4355f7f1973c" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/_examples/database/redis/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/_examples/database/redis/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/_examples/fasthttp/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/_examples/fasthttp/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/_examples/flash-messages/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/_examples/flash-messages/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/_examples/overview/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/_examples/overview/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/_examples/securecookie/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/_examples/securecookie/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/_examples/standalone/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/_examples/standalone/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sessiondb/badger/database.go" beforeDir="false" afterPath="$PROJECT_DIR$/sessiondb/badger/database.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sessiondb/boltdb/database.go" beforeDir="false" afterPath="$PROJECT_DIR$/sessiondb/boltdb/database.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sessiondb/redis/database.go" beforeDir="false" afterPath="$PROJECT_DIR$/sessiondb/redis/database.go" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -41,7 +53,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1609139377854</updated>
-      <workItem from="1609139379526" duration="173000" />
+      <workItem from="1609139379526" duration="810000" />
     </task>
     <servers />
   </component>
