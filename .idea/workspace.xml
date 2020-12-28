@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="634331c8-8295-4369-9da2-4355f7f1973c" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/sessions.go" beforeDir="false" afterPath="$PROJECT_DIR$/sessions.go" afterDir="false" />
-    </list>
+    <list default="true" id="634331c8-8295-4369-9da2-4355f7f1973c" name="Default Changelist" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
