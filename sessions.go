@@ -35,7 +35,7 @@ import (
 
 const (
 	// Version current semantic version string of the go-sessions package.
-	Version = "3.3.0"
+	Version = "3.3.1"
 )
 
 // A Sessions manager should be responsible to Start a sesion, based
