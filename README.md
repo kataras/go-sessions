@@ -88,6 +88,8 @@ Take a look at the [./examples](https://github.com/kataras/go-sessions/tree/mast
 - [Flash Messages](_examples/flash-messages/main.go)
 - [Databases](_examples/database)
 	* [Redis](_examples/database/redis/main.go)
+	* [MongoDB](https://github.com/bh90210/go-sessions-stores)
+	* [Dgraph](https://github.com/bh90210/go-sessions-stores)
 
 Outline
 ------------
