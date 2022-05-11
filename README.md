@@ -277,16 +277,16 @@ func main() {
 	})
 
 	app.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(fmt.Sprintf("You should navigate to the /set, /get, /delete, /clear,/destroy instead")))
+			w.Header().Set("Content-Type", "text/html; charset=UTF-8")
+			w.Write([]byte("You should navigate to the <a href=/set>/set</a>, <a href=/get>/get</a>, <a href=/delete>/delete</a>, <a href=/clear>/clear</a>, <a href=/destroy>/destroy</a> instead"))
 	})
 	app.HandleFunc("/set", func(w http.ResponseWriter, r *http.Request) {
-
-		//set session values.
+		// set session values.
 		s := sess.Start(w, r)
 		s.Set("name", "iris")
 
-		//test if setted here
-		w.Write([]byte(fmt.Sprintf("All ok session setted to: %s", s.GetString("name"))))
+		// test if setted here
+		fmt.Fprintf(w, "All ok session setted to: %s", s.GetString("name"))
 
 		// Set will set the value as-it-is,
 		// if it's a slice or map
@@ -301,7 +301,7 @@ func main() {
 		// get a specific value, as string, if no found returns just an empty string
 		name := sess.Start(w, r).GetString("name")
 
-		w.Write([]byte(fmt.Sprintf("The name on the /set was: %s", name)))
+		fmt.Fprintf(w, "The name on the /set was: %s", name)
 	})
 
 	app.HandleFunc("/delete", func(w http.ResponseWriter, r *http.Request) {
@@ -320,8 +320,7 @@ func main() {
 	})
 
 	app.HandleFunc("/destroy", func(w http.ResponseWriter, r *http.Request) {
-
-		//destroy, removes the entire session data and cookie
+		// destroy, removes the entire session data and cookie
 		sess.Destroy(w, r)
 	})
 	// Note about Destroy:
@@ -362,7 +361,7 @@ func main() {
 			panic("Report this as a bug, immutable data cannot be changed from the caller without re-SetImmutable")
 		}
 
-		w.Write([]byte(fmt.Sprintf("[]businessModel[0].Name remains: %s", firstModel.Name)))
+		fmt.Fprintf(w, "[]businessModel[0].Name remains: %s", firstModel.Name)
 
 		// the name should remains "Edward"
 	})
