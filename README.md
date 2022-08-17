@@ -3,13 +3,13 @@
 <img  width="600" src="https://github.com/kataras/go-sessions/raw/master/logo_900_273_bg_white.png">
 <br/><br/>
 
- <a href="https://travis-ci.org/kataras/go-sessions"><img src="https://img.shields.io/travis/kataras/go-sessions.svg?style=flat-square" alt="Build Status"></a>
- <a href="https://github.com/kataras/go-sessions/blob/master/LICENSE"><img src="https://img.shields.io/badge/%20license-MIT%20%20License%20-E91E63.svg?style=flat-square" alt="License"></a>
- <a href="https://github.com/kataras/go-sessions/releases"><img src="https://img.shields.io/badge/%20release%20-%20v3.3.0-blue.svg?style=flat-square" alt="Releases"></a>
- <a href="#documentation"><img src="https://img.shields.io/badge/%20docs-reference-5272B4.svg?style=flat-square" alt="Read me docs"></a>
- <a href="https://kataras.rocket.chat/channel/go-sessions"><img src="https://img.shields.io/badge/%20community-chat-00BCD4.svg?style=flat-square" alt="Build Status"></a>
- <a href="https://golang.org"><img src="https://img.shields.io/badge/powered_by-Go-3362c2.svg?style=flat-square" alt="Built with GoLang"></a>
- <a href="#"><img src="https://img.shields.io/badge/platform-All-yellow.svg?style=flat-square" alt="Platforms"></a>
+<a href="https://travis-ci.org/kataras/go-sessions"><img src="https://img.shields.io/travis/kataras/go-sessions.svg?style=flat-square" alt="Build Status"></a>
+<a href="https://github.com/kataras/go-sessions/blob/master/LICENSE"><img src="https://img.shields.io/badge/%20license-MIT%20%20License%20-E91E63.svg?style=flat-square" alt="License"></a>
+<a href="https://github.com/kataras/go-sessions/releases"><img src="https://img.shields.io/badge/%20release%20-%20v3.3.0-blue.svg?style=flat-square" alt="Releases"></a>
+<a href="#documentation"><img src="https://img.shields.io/badge/%20docs-reference-5272B4.svg?style=flat-square" alt="Read me docs"></a>
+<a href="https://kataras.rocket.chat/channel/go-sessions"><img src="https://img.shields.io/badge/%20community-chat-00BCD4.svg?style=flat-square" alt="Build Status"></a>
+<a href="https://golang.org"><img src="https://img.shields.io/badge/powered_by-Go-3362c2.svg?style=flat-square" alt="Built with GoLang"></a>
+<a href="#"><img src="https://img.shields.io/badge/platform-All-yellow.svg?style=flat-square" alt="Platforms"></a>
 <br/>
 
 <a href="#features" >Fast</a> http sessions manager for Go.<br/>
@@ -17,8 +17,7 @@ Simple <a href ="#outline">API</a>, while providing robust set of features such 
 
 </p>
 
-Quick view
------------
+## Quick view
 
 ```go
 import "github.com/kataras/go-sessions/v3"
@@ -47,8 +46,7 @@ sess.
   ClearFlashes()
 ```
 
-Installation
-------------
+## Installation
 
 The only requirement is the [Go Programming Language](https://golang.org/dl), at least 1.14.
 
@@ -68,16 +66,14 @@ require (
 )
 ```
 
-Features
-------------
+## Features
 
 - Focus on simplicity and performance.
 - Flash messages.
 - Supports any type of [external database](_examples/database).
 - Works with both [net/http](https://golang.org/pkg/net/http/) and [valyala/fasthttp](https://github.com/valyala/fasthttp).
 
-Documentation
-------------
+## Documentation
 
 Take a look at the [./examples](https://github.com/kataras/go-sessions/tree/master/_examples) folder.
 
@@ -87,10 +83,10 @@ Take a look at the [./examples](https://github.com/kataras/go-sessions/tree/mast
 - [Secure Cookie](_examples/securecookie/main.go)
 - [Flash Messages](_examples/flash-messages/main.go)
 - [Databases](_examples/database)
-	* [Redis](_examples/database/redis/main.go)
+  - [go-redis](_examples/database/go-redis/main.go)
+  - [redigo](_examples/database/redigo/main.go)
 
-Outline
-------------
+## Outline
 
 ```go
 // Start starts the session for the particular net/http request
@@ -213,10 +209,7 @@ Config struct {
 }
 ```
 
-
-Usage NET/HTTP
-------------
-
+## Usage NET/HTTP
 
 `Start` returns a `Session`, **Session outline**
 
@@ -371,9 +364,7 @@ func main() {
 }
 ```
 
-
-Usage FASTHTTP
-------------
+## Usage FASTHTTP
 
 `StartFasthttp` returns the same object as `Start`, `Session`.
 
@@ -475,59 +466,52 @@ fasthttp.ListenAndServe(":8080", func(reqCtx *fasthttp.RequestCtx) {
 }
 ```
 
-FAQ
-------------
+## FAQ
 
 If you'd like to discuss this package, or ask questions about it, feel free to
 
- * Explore [these questions](https://github.com/kataras/go-sessions/issues?go-sessions=label%3Aquestion).
- * Post an issue or  idea [here](https://github.com/kataras/go-sessions/issues).
- * Navigate to the [Chat][Chat].
+- Explore [these questions](https://github.com/kataras/go-sessions/issues?go-sessions=label%3Aquestion).
+- Post an issue or idea [here](https://github.com/kataras/go-sessions/issues).
+- Navigate to the [Chat][chat].
 
-
-
-Versioning
-------------
+## Versioning
 
 Current: **v3.3.0**
 
 Read more about Semantic Versioning 2.0.0
 
- - http://semver.org/
- - https://en.wikipedia.org/wiki/Software_versioning
- - https://wiki.debian.org/UpstreamGuide#Releases_and_Versions
+- http://semver.org/
+- https://en.wikipedia.org/wiki/Software_versioning
+- https://wiki.debian.org/UpstreamGuide#Releases_and_Versions
 
-People
-------------
+## People
 
 The author of go-sessions is [@kataras](https://github.com/kataras).
 
-Contributing
-------------
+## Contributing
 
 If you are interested in contributing to the go-sessions project, please make a PR.
 
-License
-------------
+## License
 
 This project is licensed under the MIT License.
 
 License can be found [here](LICENSE).
 
-[Travis Widget]: https://img.shields.io/travis/kataras/go-sessions.svg?style=flat-square
-[Travis]: http://travis-ci.org/kataras/go-sessions
-[License Widget]: https://img.shields.io/badge/license-MIT%20%20License%20-E91E63.svg?style=flat-square
-[License]: https://github.com/kataras/go-sessions/blob/master/LICENSE
-[Release Widget]: https://img.shields.io/badge/release-v3.3.0-blue.svg?style=flat-square
-[Release]: https://github.com/kataras/go-sessions/releases
-[Chat Widget]: https://img.shields.io/badge/community-chat-00BCD4.svg?style=flat-square
-[Chat]: https://kataras.rocket.chat/channel/go-sessions
-[ChatMain]: https://kataras.rocket.chat/channel/go-sessions
-[ChatAlternative]: https://gitter.im/kataras/go-sessions
-[Report Widget]: https://img.shields.io/badge/report%20card-A%2B-F44336.svg?style=flat-square
-[Report]: http://goreportcard.com/report/kataras/go-sessions
-[Documentation Widget]: https://img.shields.io/badge/docs-reference-5272B4.svg?style=flat-square
-[Documentation]: https://godoc.org/github.com/kataras/go-sessions
-[Language Widget]: https://img.shields.io/badge/powered_by-Go-3362c2.svg?style=flat-square
-[Language]: http://golang.org
-[Platform Widget]: https://img.shields.io/badge/platform-Any--OS-yellow.svg?style=flat-square
+[travis widget]: https://img.shields.io/travis/kataras/go-sessions.svg?style=flat-square
+[travis]: http://travis-ci.org/kataras/go-sessions
+[license widget]: https://img.shields.io/badge/license-MIT%20%20License%20-E91E63.svg?style=flat-square
+[license]: https://github.com/kataras/go-sessions/blob/master/LICENSE
+[release widget]: https://img.shields.io/badge/release-v3.3.0-blue.svg?style=flat-square
+[release]: https://github.com/kataras/go-sessions/releases
+[chat widget]: https://img.shields.io/badge/community-chat-00BCD4.svg?style=flat-square
+[chat]: https://kataras.rocket.chat/channel/go-sessions
+[chatmain]: https://kataras.rocket.chat/channel/go-sessions
+[chatalternative]: https://gitter.im/kataras/go-sessions
+[report widget]: https://img.shields.io/badge/report%20card-A%2B-F44336.svg?style=flat-square
+[report]: http://goreportcard.com/report/kataras/go-sessions
+[documentation widget]: https://img.shields.io/badge/docs-reference-5272B4.svg?style=flat-square
+[documentation]: https://godoc.org/github.com/kataras/go-sessions
+[language widget]: https://img.shields.io/badge/powered_by-Go-3362c2.svg?style=flat-square
+[language]: http://golang.org
+[platform widget]: https://img.shields.io/badge/platform-Any--OS-yellow.svg?style=flat-square

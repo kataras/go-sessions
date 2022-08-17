@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/kataras/go-sessions/v3"
-	"github.com/kataras/go-sessions/v3/sessiondb/redis"
-	"github.com/kataras/go-sessions/v3/sessiondb/redis/service"
+	"github.com/kataras/go-sessions/v3/sessiondb/redigo"
+	"github.com/kataras/go-sessions/v3/sessiondb/redigo/service"
 )
 
 func main() {
