@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/kataras/go-sessions/v3"
-	"github.com/kataras/go-sessions/v3/sessiondb/redis/service"
+	"github.com/kataras/go-sessions/v3/sessiondb/redigo/service"
 )
 
 // Database the redis back-end session database for the sessions.
