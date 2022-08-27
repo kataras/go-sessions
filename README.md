@@ -3,7 +3,7 @@
 <img  width="600" src="https://github.com/kataras/go-sessions/raw/master/logo_900_273_bg_white.png">
 <br/><br/>
 
- <a href="https://travis-ci.org/kataras/go-sessions"><img src="https://img.shields.io/travis/kataras/go-sessions.svg?style=flat-square" alt="Build Status"></a>
+ <a href="https://github.com/kataras/go-sessions/actions"><img src="https://img.shields.io/github/workflow/status/kataras/go-sessions/CI/master?style=for-the-badge" alt="Build Status"></a>
  <a href="https://github.com/kataras/go-sessions/blob/master/LICENSE"><img src="https://img.shields.io/badge/%20license-MIT%20%20License%20-E91E63.svg?style=flat-square" alt="License"></a>
  <a href="https://github.com/kataras/go-sessions/releases"><img src="https://img.shields.io/badge/%20release%20-%20v3.3.0-blue.svg?style=flat-square" alt="Releases"></a>
  <a href="#documentation"><img src="https://img.shields.io/badge/%20docs-reference-5272B4.svg?style=flat-square" alt="Read me docs"></a>
@@ -61,10 +61,10 @@ $ go get github.com/kataras/go-sessions/v3
 ```sh
 module your_app
 
-go 1.14
+go 1.19
 
 require (
-	github.com/kataras/go-sessions/v3 v3.3.0
+	github.com/kataras/go-sessions/v3 v3.3.1
 )
 ```
 
