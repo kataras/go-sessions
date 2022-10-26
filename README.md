@@ -58,7 +58,7 @@ $ go get github.com/kataras/go-sessions/v3
 
 **go.mod**
 
-```sh
+```mod
 module your_app
 
 go 1.19
