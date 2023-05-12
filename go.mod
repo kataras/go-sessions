@@ -29,6 +29,7 @@ require (
 	github.com/imkira/go-interpol v1.1.0 // indirect
 	github.com/klauspost/compress v1.16.3 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mna/redisc v1.3.2 // indirect
 	github.com/moul/http2curl v1.0.0 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/onsi/gomega v1.20.1 // indirect
