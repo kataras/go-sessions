@@ -3,9 +3,11 @@ package service
 import (
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/gomodule/redigo/redis"
+	"github.com/mna/redisc"
 )
 
 var (
@@ -21,7 +23,7 @@ type Service struct {
 	Connected bool
 	// Config the redis config for this redis
 	Config *Config
-	pool   *redis.Pool
+	pool   *redisc.Cluster
 }
 
 // PingPong sends a ping and receives a pong, if no pong received then returns false and filled error
@@ -29,6 +31,8 @@ func (r *Service) PingPong() (bool, error) {
 	c := r.pool.Get()
 	defer c.Close()
 	msg, err := c.Do("PING")
+	fmt.Println(msg, err)
+
 	if err != nil || msg == nil {
 		return false, err
 	}
@@ -292,31 +296,51 @@ func (r *Service) Connect() {
 		c.Addr = DefaultRedisAddr
 	}
 
-	pool := &redis.Pool{IdleTimeout: DefaultRedisIdleTimeout, MaxIdle: c.MaxIdle, MaxActive: c.MaxActive}
-	pool.TestOnBorrow = func(c redis.Conn, t time.Time) error {
-		_, err := c.Do("PING")
-		return err
+	cluster := redisc.Cluster{
+		StartupNodes: []string{c.Addr},
+		DialOptions:  []redis.DialOption{redis.DialConnectTimeout(5 * time.Second)},
+		CreatePool: func(address string, options ...redis.DialOption) (*redis.Pool, error) {
+			return &redis.Pool{
+				MaxIdle:     c.MaxIdle,
+				MaxActive:   c.MaxActive,
+				IdleTimeout: c.IdleTimeout,
+				Dial: func() (redis.Conn, error) {
+					con, err := redis.Dial(c.Network, address, options...)
+					if err != nil {
+						return nil, err
+					}
+
+					if c.Password != "" {
+						if _, err = con.Do("AUTH", c.Password); err != nil {
+							con.Close()
+							return nil, err
+						}
+					}
+
+					if c.Database != "" {
+						if _, err = con.Do("SELECT", c.Database); err != nil {
+							con.Close()
+							return nil, err
+						}
+					}
+
+					return con, err
+				},
+				TestOnBorrow: func(c redis.Conn, t time.Time) error {
+					_, err := c.Do("PING")
+					return err
+				},
+			}, nil
+		},
 	}
 
-	if c.Database != "" {
-		pool.Dial = func() (redis.Conn, error) {
-			red, err := dial(c.Network, c.Addr, c.Password)
-			if err != nil {
-				return nil, err
-			}
-			if _, err = red.Do("SELECT", c.Database); err != nil {
-				red.Close()
-				return nil, err
-			}
-			return red, err
-		}
-	} else {
-		pool.Dial = func() (redis.Conn, error) {
-			return dial(c.Network, c.Addr, c.Password)
-		}
+	// initialize its mapping
+	if err := cluster.Refresh(); err != nil {
+		log.Fatalf("Refresh failed: %v", err)
 	}
+
+	r.pool = &cluster
 	r.Connected = true
-	r.pool = pool
 }
 
 // New returns a Redis service filled by the passed config
@@ -326,6 +350,6 @@ func New(cfg ...Config) *Service {
 	if len(cfg) > 0 {
 		c = cfg[0]
 	}
-	r := &Service{pool: &redis.Pool{}, Config: &c}
+	r := &Service{pool: &redisc.Cluster{}, Config: &c}
 	return r
 }
