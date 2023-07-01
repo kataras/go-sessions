@@ -8,7 +8,8 @@ require (
 	github.com/gomodule/redigo v1.8.9
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/securecookie v1.1.1
-	github.com/valyala/fasthttp v1.47.0
+	github.com/mna/redisc v1.3.2
+	github.com/valyala/fasthttp v1.48.0
 	go.etcd.io/bbolt v1.3.7
 )
 
@@ -29,7 +30,6 @@ require (
 	github.com/imkira/go-interpol v1.1.0 // indirect
 	github.com/klauspost/compress v1.16.3 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
-	github.com/mna/redisc v1.3.2 // indirect
 	github.com/moul/http2curl v1.0.0 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/onsi/gomega v1.20.1 // indirect
