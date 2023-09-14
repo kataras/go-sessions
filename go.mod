@@ -9,7 +9,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/securecookie v1.1.1
 	github.com/mna/redisc v1.3.2
-	github.com/valyala/fasthttp v1.48.0
+	github.com/valyala/fasthttp v1.50.0
 	go.etcd.io/bbolt v1.3.7
 )
 
