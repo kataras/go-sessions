@@ -7,7 +7,7 @@ require (
 	github.com/gavv/httpexpect v2.0.0+incompatible
 	github.com/gomodule/redigo v1.8.9
 	github.com/google/uuid v1.3.0
-	github.com/gorilla/securecookie v1.1.1
+	github.com/gorilla/securecookie v1.1.2
 	github.com/mna/redisc v1.3.2
 	github.com/valyala/fasthttp v1.48.0
 	go.etcd.io/bbolt v1.3.7
